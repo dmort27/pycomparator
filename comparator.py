@@ -166,7 +166,7 @@ def select_morph():
     morphs = enumerate(re.split(' |-', form))
     return render_template('supporting_dialog', refid=refid, morphs=morphs)
 
-@app.route('/savemorph')
+@app.route('/updatemorph')
 def save_morph():
     refid = request.args.get('refid', 0, type=int)
     prefid = request.args.get('prefid', 0, type=int)
@@ -174,3 +174,14 @@ def save_morph():
     c = get_db().cursor()
     c.execute('UPDATE reflex_of SET morph_index=? WHERE refid=? AND prefid=?', (morph_index, refid, prefid))
     return jsonify({'success': 'Updated successfully'})
+
+@app.route('/newmorph')
+def new_morph():
+    refid = request.args.get('refid', 0, type=int)
+    prefid = request.args.get('prefid', 0, type=int)
+    plangid = request.args.get('plangid', 0, type=int)
+    morph_index = request.args.get('morph_index', 0, type=int)
+    c = get_db().cursor()
+    c.execute('INSERT INTO reflex_of (refid, prefid, plangid, morph_index) VALUES (?, ?, ?, ?)',
+              (refid, prefid, plangid, morph_index))
+    return jsonify({'success': 'Inserted successfully'})

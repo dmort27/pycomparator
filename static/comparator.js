@@ -20,18 +20,47 @@ $(document).ready(function() {
         console.log('Adding ' + refid + ' to ' + prefid)
         $.ajax(
           {
-            url: '/addsupporting',
+            url: '/selectmorphdialog',
             data: {
               refid: refid,
               prefid: prefid
             },
             dataType: 'json',
-            success: reloadSupporingForms
+            success: reloadMorphDialog,
+            dataType: 'html'
           }
         )
       }
     }
   };
+
+  function selectMorphDialog(data) {
+    var refid = this.refid;
+    var prefid = this.prefid;
+    $('#dialogs').append(data);
+    var morphs = $('#supporting' + refid + ' > span');
+    morphs.each(
+        function(morph_index) {
+          $(this).click(
+            function() {
+              morphs.removeClass('selected-morph');
+              $(this).addClass('selected-morph');
+            }
+          )
+        }
+    );
+    $('supporting' + refid).dialog(
+      {
+        title: 'Select Morph',
+        buttons: [
+          {
+            text: 'Update',
+            click: updateMorphSelection
+          }
+        ],
+      }
+    );
+  }
 
   function reloadSupporingForms() {
     supporting.reload();
