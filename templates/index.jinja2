@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<header>
+  <title>PyComparator</title>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='datatables.min.css') }}"/>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='jquery-ui.min.css') }}"/>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='jquery-ui.theme.min.css') }}"/>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='pycomparator.css') }}">
+</header>
+<body>
+  <div class="tables">
+    <div class="reflexes">
+      <table id="reflexes" class="cell-border compact stripe">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Langauge</th>
+            <th>Form</th>
+            <th>Gloss</th>
+          </tr>
+        </thead>
+        <tfoot>
+          <tr>
+            <th>ID</th>
+            <th>Langauge</th>
+            <th>Form</th>
+            <th>Gloss</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="reconstructions">
+      <div class="protoforms">
+        <table id="protoforms" class="cell-border compact stripe">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Proto-Language</th>
+              <th>Form</th>
+              <th>Gloss</th>
+            </tr>
+          </thead>
+          <tfoot>
+            <tr>
+              <th>ID</th>
+              <th>Proto-Language</th>
+              <th>Form</th>
+              <th>Gloss</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="supporting"></div>
+      <table id="supporting" class="cell-border compact stripe">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Language</th>
+            <th>Form</th>
+            <th>Gloss</th>
+            <th>Morph Index</th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+  </div>
+  <div id='dialogs'></div>
+  <script type=text/javascript src="{{ url_for('static', filename='jquery-3.4.1.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static', filename='datatables.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static', filename='jquery-ui.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static', filename='comparator.js') }}"></script>
+</body>
+</html>
