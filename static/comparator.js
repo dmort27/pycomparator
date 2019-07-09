@@ -1,5 +1,7 @@
 $(document).ready(function () {
 
+  // Functions to delete and remove forms
+
   function deleteReflexes() {
     var refSelection = reflexes
       .rows({
@@ -42,6 +44,12 @@ $(document).ready(function () {
         });
       });
   }
+
+  function removeReflexFromSupportingForms() {
+    console.log('Remove reflex');
+  }
+
+  // Functions to add reflexes to supporting forms and choose cognate morphs
 
   function addReflexesToSupportingForms() {
     var refSelection = reflexes
@@ -167,6 +175,8 @@ $(document).ready(function () {
     }
   }
 
+  // Functions to edit reflexes and protoforms
+
   function editReflexes() {
     var selection = reflexes.rows({
       selected: true
@@ -287,6 +297,8 @@ $(document).ready(function () {
     $(this).dialog('close');
   }
 
+  // Create search boxes from footers
+
   $('#reflexes tfoot th').each(function() {
     var title = $(this).text();
     $(this).html('<input type="text" placeholder="Search ' + title + '" />');
@@ -297,7 +309,7 @@ $(document).ready(function () {
     $(this).html('<input type="text" placeholder="Search ' + title + '" />');
   });
 
-  console.log('Protoforms')
+  // Initialize DataTables
 
   var protoforms = $('#protoforms').DataTable({
     dom: 'Blrtp',
@@ -332,8 +344,6 @@ $(document).ready(function () {
   ]
   });
 
-  console.log('Reflexes')
-
   var reflexes = $('#reflexes').DataTable({
     dom: 'Blrtp',
     lengthMenu: [20, 40, 60],
@@ -363,8 +373,6 @@ $(document).ready(function () {
     }]
   });
 
-  console.log('Supporing')
-
   var supporting = $('#supporting').DataTable({
     dom: 'Blrtp',
     select: true,
@@ -392,7 +400,8 @@ $(document).ready(function () {
     ]
   });
 
-  // Apply the search
+  // Apply searches
+
   reflexes.columns().eq(0).each(function(colIdx) {
     $('input', reflexes.column(colIdx).footer()).on('keyup change', function() {
       reflexes
@@ -410,6 +419,8 @@ $(document).ready(function () {
         .draw();
     });
   });
+
+  // Associate select event with the protoforms table
 
   protoforms.on('select', function(e, dt, type, indexes) {
     var prefid = protoforms.rows(indexes).data().toArray()[0][0];
