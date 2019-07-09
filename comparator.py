@@ -19,6 +19,20 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
+def parse_form(form):
+    return [m.groups() for m in re.finditer('([^ -]+)( |-|)', form)]
+
+def strong_morph(form, i):
+    morph, delim = form[i]
+    form[i] = ('<strong>{}</strong>'.format(morph), delim)
+    return form
+
+def join_form(form):
+    return ''.join([''.join(m) for m in form])
+
+def strong_form(form, i):
+    return join_form(strong_morph(parse_form(form), i))
+
 
 @app.route('/')
 def root():
@@ -70,9 +84,9 @@ def protoforms():
     length = request.args.get('length', 0, type=int)
     draw = request.args.get('draw', 0, type=int)
     # Search strings for language, form, and gloss
-    lang_search = '%{}%'.format(request.args.get('columns[1][search][value]', '', type=str))
-    form_search = '%{}%'.format(request.args.get('columns[2][search][value]', '', type=str))
-    gloss_search = '%{}%'.format(request.args.get('columns[3][search][value]', '', type=str))
+    lang_search = '%{}%'.format(request.args.get('columns[2][search][value]', '', type=str))
+    form_search = '%{}%'.format(request.args.get('columns[3][search][value]', '', type=str))
+    gloss_search = '%{}%'.format(request.args.get('columns[4][search][value]', '', type=str))
     # Order
     order = cols[request.args.get('order[0][column]', 0, type=int)]
     direction = request.args.get('order[0][dir]', 'asc', type=str)
@@ -90,7 +104,7 @@ def protoforms():
               "WHERE langnames.name LIKE ? AND form LIKE ? AND gloss LIKE ?)",
               (lang_search, form_search, gloss_search))
     filtered_total = int(c.fetchone()[0])
-    c.execute(("SELECT DISTINCT refid, langnames.name AS lname, form, gloss " +
+    c.execute(("SELECT DISTINCT refid, plangid, langnames.name AS lname, form, gloss " +
 	           "FROM reflexes " +
 	           "INNER JOIN descendant_of ON plangid=reflexes.langid " +
 	           "JOIN langnames ON langnames.langid=reflexes.langid " +
@@ -100,10 +114,12 @@ def protoforms():
                (lang_search, form_search, gloss_search,
                 length, start))
     protoforms = c.fetchall()
-    return jsonify({'draw': draw,
-                    'recordsTotal': total,
-                    'recordsFiltered': filtered_total,
-                    'data': protoforms})
+    data = {'draw': draw,
+            'recordsTotal': total,
+            'recordsFiltered': filtered_total,
+            'data': protoforms}
+    print(data)
+    return jsonify(data)
 
 @app.route('/supporting')
 def supporting():
@@ -117,11 +133,11 @@ def supporting():
     c.execute('SELECT COUNT(*) FROM (SELECT DISTINCT reflexes.refid FROM reflexes JOIN reflex_of ON reflex_of.refid=reflexes.refid WHERE prefid=?)', (prefid,))
     filtered_total = int(c.fetchone()[0])
     c.execute("SELECT reflexes.refid, langnames.name, form, gloss, morph_index FROM reflexes JOIN reflex_of ON reflex_of.refid=reflexes.refid JOIN langnames on reflexes.langid=langnames.langid WHERE prefid=? LIMIT ? OFFSET ?", (prefid, length, start))
-    supporing_forms = c.fetchall()
+    supporting_forms = [[r, l, strong_form(f, i), g, i] for (r, l, f, g, i) in c.fetchall()]
     json = jsonify({'draw': draw,
                     'recordsTotal': total,
                     'recordsFiltered': filtered_total,
-                    'data': supporing_forms})
+                    'data': supporting_forms})
     print(json)
     return json
 
@@ -145,43 +161,69 @@ def update_reflex():
 
 @app.route('/addsupporting')
 def add_supporting_form():
-    refid = request.args.get('refid', 0, type=int)
-    prefid = request.args.get('prefid', 0, type=int)
-    print(f'Add {refid} to {prefid}')
-    c = get_db().cursor()
-    c.execute('SELECT langid FROM reflexes WHERE refid=?', (prefid,))
-    plangid = c.fetchone()[0]
-    c.execute('SELECT COUNT(*) FROM reflex_of WHERE prefid=? AND refid=?', (prefid, refid))
-    if not c.fetchone()[0]:
-        c.execute('INSERT INTO reflex_of (prefid, refid, plangid, morph_index) VALUES (?, ?, ?, ?)', (prefid, refid, plangid, 0))
-        get_db().commit()
-    return jsonify({'success': 'Inserted successfully!'})
-
-@app.route('/selectmorph')
-def select_morph():
-    refid = request.args.get('refid', 0, type=int)
-    c = get_db().cursor()
-    c.execute('SELECT from FROM reflexes WHERE refid=?', (refid,))
-    form = c.fetchone()[0]
-    morphs = enumerate(re.split(' |-', form))
-    return render_template('supporting_dialog', refid=refid, morphs=morphs)
-
-@app.route('/updatemorph')
-def save_morph():
-    refid = request.args.get('refid', 0, type=int)
-    prefid = request.args.get('prefid', 0, type=int)
-    morph_index = request.args.get('morph_index', 0, type=int)
-    c = get_db().cursor()
-    c.execute('UPDATE reflex_of SET morph_index=? WHERE refid=? AND prefid=?', (morph_index, refid, prefid))
-    return jsonify({'success': 'Updated successfully'})
-
-@app.route('/newmorph')
-def new_morph():
+    print('/addsupporting')
     refid = request.args.get('refid', 0, type=int)
     prefid = request.args.get('prefid', 0, type=int)
     plangid = request.args.get('plangid', 0, type=int)
-    morph_index = request.args.get('morph_index', 0, type=int)
+    print(f'Add {refid} to {prefid} in {plangid}')
     c = get_db().cursor()
-    c.execute('INSERT INTO reflex_of (refid, prefid, plangid, morph_index) VALUES (?, ?, ?, ?)',
-              (refid, prefid, plangid, morph_index))
-    return jsonify({'success': 'Inserted successfully'})
+    c.execute('SELECT COUNT(*) FROM reflex_of WHERE prefid=? AND refid=?', (prefid, refid))
+    if not c.fetchone()[0]:
+        c.execute('INSERT INTO reflex_of (prefid, refid, plangid, morph_index) VALUES (?, ?, ?, ?)',
+                  (prefid, refid, plangid, 0))
+        get_db().commit()
+    c.execute('SELECT morph_index FROM reflex_of WHERE refid=? AND prefid=?',
+              (refid, prefid))
+    morph_index = c.fetchone()[0]
+    c.execute('SELECT form FROM reflexes WHERE refid=?', (refid,))
+    form = c.fetchone()[0]
+    morphs = enumerate(re.split(' |-', form))
+    return render_template('supporting_dialog.jinja2',
+                           refid=refid,
+                           morphs=morphs,
+                           morph_index=morph_index)
+
+@app.route('/updatemorph')
+def update_morph():
+    refid = request.args.get('refid', 0, type=int)
+    prefid = request.args.get('prefid', 0, type=int)
+    morph_index = request.args.get('morph_index', 0, type=int)
+    print(f"morph_index: {morph_index}")
+    c = get_db().cursor()
+    c.execute('UPDATE reflex_of SET morph_index=? WHERE refid=? AND prefid=?', (morph_index, refid, prefid))
+    get_db().commit()
+    return jsonify({'success': 'Updated successfully'})
+
+@app.route('/update')
+def update():
+    print("Update")
+    return jsonify({'success': 'Success!'})
+
+@app.route('/deletereflex')
+def delete_reflex():
+    refid = request.args.get('refid', -1, type=int)
+    c = get_db().cursor()
+    c.execute('DELETE FROM reflexes WHERE refid=?', (refid,))
+    c.execute('DELETE FROM reflex_of WHERE refid=?', (refid,))
+    get_db().commit()
+    return jsonify({'success': 'Deleted successfully'})
+
+@app.route('/deleteprotoform')
+def delete_protoform():
+    prefid = request.args.get('prefid', -1, type=int)
+    print(f'Delete prefid={prefid}')
+    c = get_db().cursor()
+    c.execute('DELETE FROM reflexes WHERE refid=?', (prefid,))
+    c.execute('DELETE FROM reflex_of WHERE prefid=?', (prefid,))
+    get_db().commit()
+    return jsonify({'success': 'Deleted successfully'})
+
+@app.route('/removesupporting')
+def removed_reflex():
+    refid = request.args.get('refid', -1, type=int)
+    prefid = request.args.get('prefid', -1, type=int)
+    c = get_db().cursor()
+    c.execute('DELETE FROM reflex_of WHERE refid=? AND prefid=?',
+              (refid, prefid))
+    get_db().commit()
+    return jsonify({'success': 'Removed successfully'})

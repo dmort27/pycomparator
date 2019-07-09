@@ -5,7 +5,7 @@
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='datatables.min.css') }}"/>
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='jquery-ui.min.css') }}"/>
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='jquery-ui.theme.min.css') }}"/>
-  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='pycomparator.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='comparator.css') }}">
 </header>
 <body>
   <div class="tables">
@@ -35,6 +35,7 @@
           <thead>
             <tr>
               <th>ID</th>
+              <th>PLID</th>
               <th>Proto-Language</th>
               <th>Form</th>
               <th>Gloss</th>
@@ -43,6 +44,7 @@
           <tfoot>
             <tr>
               <th>ID</th>
+              <th>PLID</th>
               <th>Proto-Language</th>
               <th>Form</th>
               <th>Gloss</th>
@@ -65,9 +67,9 @@
     </div>
   </div>
   <div id='dialogs'></div>
-  <script type=text/javascript src="{{ url_for('static', filename='jquery-3.4.1.min.js') }}"></script>
-  <script type="text/javascript" src="{{ url_for('static', filename='datatables.min.js') }}"></script>
-  <script type="text/javascript" src="{{ url_for('static', filename='jquery-ui.min.js') }}"></script>
+  <script type=text/javascript src="{{ url_for('static', filename='jquery-3.4.1.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static', filename='datatables.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static', filename='jquery-ui.js') }}"></script>
   <script type="text/javascript" src="{{ url_for('static', filename='comparator.js') }}"></script>
 </body>
 </html>

@@ -1,6 +1,47 @@
-window.prefid = 0;
+$(document).ready(function () {
 
-$(document).ready(function() {
+  function deleteReflexes() {
+    var refSelection = reflexes
+      .rows({
+        selected: true
+      })
+      .data()
+      .toArray()
+      .forEach(function(value, i) {
+        var refid = value[0];
+        $.ajax({
+          url: '/deletereflex',
+          data: {
+            refid: refid
+          },
+          success: function() {
+            console.log('Deleted reflex');
+            reflexes.ajax.reload();
+          }
+        });
+      });
+    }
+
+  function deleteProtoform() {
+    var protoSelection = protoforms
+      .rows({
+        selected: true
+      })
+      .every(function() {
+        prefid = this.data()[0];
+        console.log('Deleting prefid:' + prefid);
+        $.ajax({
+          url: '/deleteprotoform',
+          data: {
+            prefid: prefid
+          },
+          success: function() {
+            console.log('Deleted protoform');
+            protoforms.ajax.reload();
+          }
+        });
+      });
+  }
 
   function addReflexesToSupportingForms() {
     var refSelection = reflexes
@@ -9,68 +50,127 @@ $(document).ready(function() {
       })
       .data();
     var protoSelection = protoforms
-        .rows({
-          selected: true
-        })
-        .data();
+      .rows({
+        selected: true
+      })
+      .data();
     for (var i = 0; i < refSelection.length; i++) {
       for (var j = 0; j < protoSelection.length; j++) {
-        refid = refSelection[i][0]
-        prefid = protoSelection[j][0]
-        console.log('Adding ' + refid + ' to ' + prefid)
-        $.ajax(
-          {
-            url: '/selectmorphdialog',
-            data: {
-              refid: refid,
-              prefid: prefid
-            },
-            dataType: 'json',
-            success: reloadMorphDialog,
-            dataType: 'html'
+        var refid = refSelection[i][0];
+        var prefid = protoSelection[j][0];
+        var plangid = protoSelection[j][1];
+        console.log('Adding ' + refid + ' to ' + prefid + ' in ' + plangid)
+        $.ajax({
+          url: '/addsupporting',
+          data: {
+            refid: refid,
+            prefid: prefid,
+            plangid: plangid
+          },
+          dataType: 'html',
+          success: popupSupportingDialog,
+          context: {
+            refid: refid,
+            prefid: prefid,
+            plangid: plangid,
+            morph_index: 0
+          }
+        });
+      }
+    }
+  }
+
+  function editMorphOfSupportingForm() {
+    console.log('Choosing Morph');
+    var protoSelection = protoforms.rows({
+      selected: true
+    }).data();
+    var supSelection = supporting.rows({
+      selected: true
+    }).data();
+    var prefid = protoSelection[0][0];
+    var plangid = protoSelection[0][1];
+    for (var i = 0; i < supSelection.length; i++) {
+      var refid = supSelection[i][0];
+      var morph_index = supSelection[i][4];
+      console.log('Editing ' + refid + ' reflex of ' + prefid + ' in ' + plangid);
+      $.ajax({
+        url: '/addsupporting',
+        data: {
+          refid: refid,
+          prefid: prefid,
+          plangid: plangid
+        },
+        dataType: 'html',
+        success: popupSupportingDialog,
+        context: {
+          refid: refid,
+          prefid: prefid,
+          plangid: plangid,
+          morph_index: morph_index
+        }
+      });
+    }
+  }
+
+  function popupSupportingDialog(html) {
+    $('#dialogs').append(html);
+    var dialog = $('#supporting' + this.refid)
+    var morphs = $('#supporting' + this.refid + ' > span');
+    dialog.data('morph_index', this.morph_index);
+    morphs
+      .eq(this.morph_index)
+      .addClass('selected-morph');
+    morphs.each(
+      function(i) {
+        $(this).click(
+          function() {
+            morphs.removeClass('selected-morph');
+            $(this).addClass('selected-morph');
+            dialog.data('morph_index', i);
+            console.log('morph_index in click: ' + dialog.data('morph_index'));
           }
         )
       }
-    }
-  };
-
-  function selectMorphDialog(data) {
-    var refid = this.refid;
-    var prefid = this.prefid;
-    $('#dialogs').append(data);
-    var morphs = $('#supporting' + refid + ' > span');
-    morphs.each(
-        function(morph_index) {
-          $(this).click(
-            function() {
-              morphs.removeClass('selected-morph');
-              $(this).addClass('selected-morph');
-            }
-          )
-        }
     );
-    $('supporting' + refid).dialog(
-      {
+    dialog
+      .dialog({
         title: 'Select Morph',
-        buttons: [
-          {
-            text: 'Update',
-            click: updateMorphSelection
-          }
-        ],
-      }
-    );
+        buttons: [{
+          text: 'OK',
+          click: updateMorphSelection({
+            refid: this.refid,
+            prefid: this.prefid,
+            plangid: this.plangid,
+            dialog: dialog
+          }),
+        }],
+      });
   }
 
-  function reloadSupporingForms() {
-    supporting.reload();
+  function updateMorphSelection(params) {
+    return function() {
+      console.log('morph_index in update:' + params.dialog.data('morph_index'));
+      $.ajax({
+        url: '/updatemorph',
+        data: {
+          refid: params.refid,
+          prefid: params.prefid,
+          morph_index: params.dialog.data('morph_index')
+        },
+        success: function() {
+          console.log('Update success. params.refid=' + params.refid);
+          params.dialog.dialog('close');
+          supporting.ajax.reload();
+        }
+      })
+    }
   }
 
   function editReflexes() {
     var selection = reflexes.rows({
       selected: true
     }).data();
-    var records = [];
     for (var i = 0; i < selection.length; i++) {
       $.ajax({
         refid: selection[i][0],
@@ -91,7 +191,6 @@ $(document).ready(function() {
     var selection = protoforms.rows({
       selected: true
     }).data();
-    var records = [];
     for (var i = 0; i < selection.length; i++) {
       $.ajax({
         refid: selection[i][0],
@@ -151,7 +250,7 @@ $(document).ready(function() {
   }
 
   function updateReflex() {
-    refid = $(this).data('refid');
+    var refid = $(this).data('refid');
     var form = $('#editform' + refid).val();
     var gloss = $('#editgloss' + refid).val();
     $.ajax({
@@ -170,7 +269,7 @@ $(document).ready(function() {
   }
 
   function updateProtoform() {
-    refid = $(this).data('refid');
+    var refid = $(this).data('refid');
     var form = $('#editform' + refid).val();
     var gloss = $('#editgloss' + refid).val();
     $.ajax({
@@ -198,23 +297,24 @@ $(document).ready(function() {
     $(this).html('<input type="text" placeholder="Search ' + title + '" />');
   });
 
-  var supporting = $('#supporting').DataTable({
-    select: true,
-    serverSide: true,
-    ajax: {
-      url: "/supporting",
-      type: "GET",
-      data: function(d) {
-        d.prefid = window.prefid;
-      }
-    }
-  });
+  console.log('Protoforms')
 
   var protoforms = $('#protoforms').DataTable({
     dom: 'Blrtp',
     select: {
       style: 'single'
     },
+    columnDefs: [
+      {
+        targets: [1],
+        visible: false,
+        searchable: false
+      },
+      {
+        targets: [0],
+        visible: false
+      }
+    ],
     serverSide: true,
     ajax: {
       url: "/protoforms",
@@ -222,35 +322,72 @@ $(document).ready(function() {
     },
     buttons: [
       {
-        text: 'Edit',
-        action: editProtoform
-      }
-    ]
+      text: 'Edit',
+      action: editProtoform
+    },
+    {
+      text: 'Delete',
+      action: deleteProtoform
+    }
+  ]
   });
+
+  console.log('Reflexes')
 
   var reflexes = $('#reflexes').DataTable({
     dom: 'Blrtp',
+    lengthMenu: [20, 40, 60],
     select: true,
     serverSide: true,
     ajax: {
       url: "/reflexes",
       type: "GET"
     },
-    columns: [{
-        orderable: false,
-        searchable: false
-      },
-      null,
-      null,
-      null
-    ],
-    buttons: [{
-        text: 'Add',
+    buttons: [
+      {
+        text: 'Add to Set',
         action: addReflexesToSupportingForms
       },
       {
         text: 'Edit',
         action: editReflexes
+      },
+      {
+        text: 'Delete',
+        action: deleteReflexes
+      }
+    ],
+    columnDefs: [{
+      targets: [0],
+      visible: false,
+    }]
+  });
+
+  console.log('Supporing')
+
+  var supporting = $('#supporting').DataTable({
+    dom: 'Blrtp',
+    select: true,
+    serverSide: true,
+    columnDefs: [{
+      targets: [4],
+      visible: false,
+      searchable: false
+    }],
+    ajax: {
+      url: "/supporting",
+      type: "GET",
+      data: function(d) {
+        d.prefid = $('#protoforms').data('prefid') || -1;
+      }
+    },
+    buttons: [
+      {
+        text: 'Edit',
+        action: editMorphOfSupportingForm
+      },
+      {
+        text: 'Remove from Set'
       }
     ]
   });
@@ -275,8 +412,8 @@ $(document).ready(function() {
   });
 
   protoforms.on('select', function(e, dt, type, indexes) {
-    window.prefid = protoforms.rows(indexes).data().toArray()[0][0];
-    console.log(window.prefid);
+    var prefid = protoforms.rows(indexes).data().toArray()[0][0];
+    $('#protoforms').data('prefid', prefid);
     supporting.draw();
   });
 });

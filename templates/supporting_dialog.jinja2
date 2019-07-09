@@ -1,5 +1,7 @@
 <div id="supporting{{ refid }}">
     {% for i, morph in morphs %}
-      <span id="morph-{{ i }}>{{ morph }}</span>&nbsp;
+      <span id="morph-{{ i }}"
+      {% if i==morph_index %}class="selected-morph" {% endif %}>{{ morph }}</span>
+      &nbsp;
     {% endfor %}
 </div>
