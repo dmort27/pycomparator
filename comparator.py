@@ -4,6 +4,8 @@ import re
 from flask import Flask, jsonify, g, request, render_template
 app = Flask(__name__)
 
+# Database setup
+
 DATABASE = 'db/borderlands.sqlite3'
 
 def get_db():
@@ -12,12 +14,13 @@ def get_db():
         db = g._database = sqlite3.connect(DATABASE)
     return db
 
-
 @app.teardown_appcontext
 def close_connection(exception):
     db = getattr(g, '_database', None)
     if db is not None:
         db.close()
+
+# Utility functions for presenting parsed forms
 
 def parse_form(form):
     return [m.groups() for m in re.finditer('([^ -]+)( |-|)', form)]
@@ -33,10 +36,13 @@ def join_form(form):
 def strong_form(form, i):
     return join_form(strong_morph(parse_form(form), i))
 
+# The page
 
 @app.route('/')
 def root():
     return render_template('index.jinja2')
+
+# Data for the three main tables
 
 @app.route('/reflexes', methods=['GET', 'POST'])
 def reflexes():
@@ -141,6 +147,8 @@ def supporting():
     print(json)
     return json
 
+# Dialog for editing reflexes
+
 @app.route('/reflexdialog')
 def reflex_dialog():
     id = request.args.get('refid', 0, type=int)
@@ -158,6 +166,8 @@ def update_reflex():
     c.execute('UPDATE reflexes SET form=?, gloss=? WHERE refid=?', (form, gloss, refid))
     get_db().commit()
     return jsonify({'success': 'Updated successfully!'})
+
+# Functions for additing and editing (choosing morphs for) supporting forms
 
 @app.route('/addsupporting')
 def add_supporting_form():
@@ -194,10 +204,7 @@ def update_morph():
     get_db().commit()
     return jsonify({'success': 'Updated successfully'})
 
-@app.route('/update')
-def update():
-    print("Update")
-    return jsonify({'success': 'Success!'})
+# Functions for deleting reflexes and protoforms
 
 @app.route('/deletereflex')
 def delete_reflex():
@@ -217,6 +224,8 @@ def delete_protoform():
     c.execute('DELETE FROM reflex_of WHERE prefid=?', (prefid,))
     get_db().commit()
     return jsonify({'success': 'Deleted successfully'})
+
+# Remove supporting forms
 
 @app.route('/removesupporting')
 def removed_reflex():
