@@ -124,7 +124,6 @@ def protoforms():
             'recordsTotal': total,
             'recordsFiltered': filtered_total,
             'data': protoforms}
-    print(data)
     return jsonify(data)
 
 @app.route('/supporting')
