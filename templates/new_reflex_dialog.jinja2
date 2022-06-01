@@ -1,0 +1,26 @@
+<table id="newreflex">
+  <tbody>
+    <tr>
+      <td>Language Name</td>
+      <td>
+        <select id="langid" method="GET" action="/">
+          {% for langid, langname in langs %}
+            <option value={{langid}}>{{langname}}</option>
+          {% endfor %}
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td>Source ID</td>
+      <td><input id="sourceid" type="text" value=0></td>
+    </tr>
+    <tr>
+      <td>Form</td>
+      <td><input id="form" type="text" value=""></td>
+    </tr>
+    <tr>
+      <td>Gloss</td>
+      <td><input id="gloss" type="text" value=""></td>
+    </tr>
+  </tbody>
+</table>

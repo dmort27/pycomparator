@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import re
 
@@ -20,7 +21,9 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
+##############################################################################
 # Utility functions for presenting parsed forms
+##############################################################################
 
 def parse_form(form):
     return [m.groups() for m in re.finditer('([^ -]+)( |-|)', form)]
@@ -36,13 +39,17 @@ def join_form(form):
 def strong_form(form, i):
     return join_form(strong_morph(parse_form(form), i))
 
+##############################################################################
 # The page
+##############################################################################
 
 @app.route('/')
 def root():
     return render_template('index.jinja2')
 
+##############################################################################
 # Data for the three main tables
+##############################################################################
 
 @app.route('/reflexes', methods=['GET', 'POST'])
 def reflexes():
@@ -146,27 +153,32 @@ def supporting():
     print(json)
     return json
 
-# Dialog for editing reflexes
+##############################################################################
+# Add reflexes to master list
+##############################################################################
 
-@app.route('/reflexdialog')
-def reflex_dialog():
-    id = request.args.get('refid', 0, type=int)
-    lname = request.args.get('lname', '', type=str)
-    form = request.args.get('form', '', type=str)
-    gloss = request.args.get('gloss', '', type=str)
-    return render_template('edit_dialog.jinja2', id=id, lname=lname, form=form, gloss=gloss)
+@app.route('/newreflexdialog')
+def new_reflex_dialog():
+    c = get_db().cursor()
+    c.execute("SELECT langid, name FROM langnames")
+    langs = c.fetchall()
+    return render_template('new_reflex_dialog.jinja2', langs=langs)
 
-@app.route('/updatereflex')
-def update_reflex():
-    refid = request.args.get('refid', 0, type=int)
+@app.route('/addnewreflex')
+def add_new_reflex():
+    langid = request.args.get('langid', 0, type=int)
+    sourceid = request.args.get('sourceid', 0, type=int)
     form = request.args.get('form', '', type=str)
     gloss = request.args.get('gloss', '', type=str)
     c = get_db().cursor()
-    c.execute('UPDATE reflexes SET form=?, gloss=? WHERE refid=?', (form, gloss, refid))
+    c.execute('INSERT INTO reflexes (langid, sourceid, form, gloss) VALUES (?, ?, ?, ?)', 
+        (langid, sourceid, form, gloss))
     get_db().commit()
-    return jsonify({'success': 'Updated successfully!'})
+    return jsonify({'success': 'Entry successfully added'})
 
-# Functions for additing and editing (choosing morphs for) supporting forms
+##############################################################################
+# Add reflexes to cognate sets
+##############################################################################
 
 @app.route('/addsupporting')
 def add_supporting_form():
@@ -192,6 +204,67 @@ def add_supporting_form():
                            morphs=morphs,
                            morph_index=morph_index)
 
+##############################################################################
+# Remove reflexes (supporting forms) from cognate sets
+##############################################################################
+
+@app.route('/removesupporting')
+def removed_reflex():
+    refid = request.args.get('refid', -1, type=int)
+    prefid = request.args.get('prefid', -1, type=int)
+    c = get_db().cursor()
+    c.execute('DELETE FROM reflex_of WHERE refid=? AND prefid=?',
+              (refid, prefid))
+    get_db().commit()
+    return jsonify({'success': 'Removed successfully'})
+
+##############################################################################
+# Edit reflexes
+##############################################################################
+
+@app.route('/reflexdialog')
+def reflex_dialog():
+    id = request.args.get('refid', 0, type=int)
+    lname = request.args.get('lname', '', type=str)
+    form = request.args.get('form', '', type=str)
+    gloss = request.args.get('gloss', '', type=str)
+    return render_template('edit_dialog.jinja2', id=id, lname=lname, form=form, gloss=gloss)
+
+@app.route('/updatereflex')
+def update_reflex():
+    refid = request.args.get('refid', 0, type=int)
+    form = request.args.get('form', '', type=str)
+    gloss = request.args.get('gloss', '', type=str)
+    c = get_db().cursor()
+    c.execute('UPDATE reflexes SET form=?, gloss=? WHERE refid=?', (form, gloss, refid))
+    get_db().commit()
+    return jsonify({'success': 'Updated successfully!'})
+
+##############################################################################
+# Delete reflexes
+##############################################################################
+
+@app.route('/deletereflex')
+def delete_reflex():
+    refid = request.args.get('refid', -1, type=int)
+    c = get_db().cursor()
+    c.execute('DELETE FROM reflexes WHERE refid=?', (refid,))
+    c.execute('DELETE FROM reflex_of WHERE refid=?', (refid,))
+    get_db().commit()
+    return jsonify({'success': 'Deleted successfully'})
+
+##############################################################################
+# Edit protoforms
+##############################################################################
+
+##############################################################################
+# Edits morphs of supporting forms
+##############################################################################
+
+##############################################################################
+# Delete protoforms
+##############################################################################
+
 @app.route('/updatemorph')
 def update_morph():
     refid = request.args.get('refid', 0, type=int)
@@ -203,17 +276,6 @@ def update_morph():
     get_db().commit()
     return jsonify({'success': 'Updated successfully'})
 
-# Functions for deleting reflexes and protoforms
-
-@app.route('/deletereflex')
-def delete_reflex():
-    refid = request.args.get('refid', -1, type=int)
-    c = get_db().cursor()
-    c.execute('DELETE FROM reflexes WHERE refid=?', (refid,))
-    c.execute('DELETE FROM reflex_of WHERE refid=?', (refid,))
-    get_db().commit()
-    return jsonify({'success': 'Deleted successfully'})
-
 @app.route('/deleteprotoform')
 def delete_protoform():
     prefid = request.args.get('prefid', -1, type=int)
@@ -223,15 +285,3 @@ def delete_protoform():
     c.execute('DELETE FROM reflex_of WHERE prefid=?', (prefid,))
     get_db().commit()
     return jsonify({'success': 'Deleted successfully'})
-
-# Remove supporting forms
-
-@app.route('/removesupporting')
-def removed_reflex():
-    refid = request.args.get('refid', -1, type=int)
-    prefid = request.args.get('prefid', -1, type=int)
-    c = get_db().cursor()
-    c.execute('DELETE FROM reflex_of WHERE refid=? AND prefid=?',
-              (refid, prefid))
-    get_db().commit()
-    return jsonify({'success': 'Removed successfully'})
