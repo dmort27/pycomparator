@@ -1,4 +1,5 @@
 import json
+# from selectors import EpollSelector
 import sqlite3
 import re
 
@@ -27,17 +28,22 @@ def close_connection(exception):
 
 def parse_form(form):
     return [m.groups() for m in re.finditer('([^ -]+)( |-|)', form)]
-
+    
 def strong_morph(form, i):
-    morph, delim = form[i]
-    form[i] = ('<strong>{}</strong>'.format(morph), delim)
+    if len(form) > i:
+        morph, delim = form[i]
+        form[i] = ('<strong>{}</strong>'.format(morph), delim)
     return form
 
 def join_form(form):
     return ''.join([''.join(m) for m in form])
 
 def strong_form(form, i):
-    return join_form(strong_morph(parse_form(form), i))
+    morphs = parse_form(form)
+    if morphs:
+        return join_form(strong_morph(morphs, i))
+    else:
+        return ''
 
 ##############################################################################
 # The page
