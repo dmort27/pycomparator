@@ -160,7 +160,9 @@ def supporting():
 @app.route('/newreflexdialog')
 def new_reflex_dialog():
     c = get_db().cursor()
-    c.execute("SELECT langid, name FROM langnames")
+    c.execute('SELECT DISTINCT langid, name ' + 
+              'FROM langnames ' + 
+              'ORDER BY name')
     langs = c.fetchall()
     return render_template('new_reflex_dialog.jinja2', langs=langs)
 
@@ -254,15 +256,51 @@ def delete_reflex():
     return jsonify({'success': 'Deleted successfully'})
 
 ##############################################################################
+# Add correspondence set
+##############################################################################
+
+@app.route('/newsetdialog')
+def new_set_dialog():
+    langname = request.args.get('langname', '', type=str)
+    form = request.args.get('form', '', type=str)
+    gloss = request.args.get('gloss', '', type=str)
+    num_morphs = len(re.split('- ', form))
+    c = get_db().cursor()
+    c.execute('SELECT DISTINCT langnames.langid, langnames.name ' +
+              'FROM langnames ' +
+              'INNER JOIN descendant_of ON plangid=langnames.langid ' +
+              'ORDER BY langnames.name')
+    plangs = c.fetchall()
+    return render_template('new_set_dialog.jinja2',
+                            plangs=plangs,
+                            langname=langname,
+                            form=form,
+                            gloss=gloss,
+                            num_morphs=num_morphs)
+
+@app.route('/addnewset')
+def add_new_set():
+    refid = request.args.get('refid', 0, type=int)
+    plangid = request.args.get('plangid', 0, type=int)
+    protoform = request.args.get('protoform', '', type=str)
+    protogloss = request.args.get('protogloss', '', type=str)
+    morph_index = request.args.get('morph_index', 0, type=int)
+    c = get_db().cursor()
+    c.execute('INSERT INTO reflexes (langid, sourceid, form, gloss) VALUES (?, -2, ?, ?)', (plangid, protoform, protogloss))
+    get_db().commit()
+    c.execute('SELECT LAST_INSERT_ROWID()')
+    prefid = c.fetchone()[0]
+    c.execute('INSERT INTO reflex_of (refid, prefid, plangid, morph_index) VALUES (?, ?, ?, ?)', 
+               (refid, prefid, plangid, morph_index))
+    get_db().commit()
+    return jsonify({'success': 'Set successfully added'})
+
+##############################################################################
 # Edit protoforms
 ##############################################################################
 
 ##############################################################################
 # Edits morphs of supporting forms
-##############################################################################
-
-##############################################################################
-# Delete protoforms
 ##############################################################################
 
 @app.route('/updatemorph')
@@ -275,6 +313,10 @@ def update_morph():
     c.execute('UPDATE reflex_of SET morph_index=? WHERE refid=? AND prefid=?', (morph_index, refid, prefid))
     get_db().commit()
     return jsonify({'success': 'Updated successfully'})
+
+##############################################################################
+# Delete protoforms
+##############################################################################
 
 @app.route('/deleteprotoform')
 def delete_protoform():

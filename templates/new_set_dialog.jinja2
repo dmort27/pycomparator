@@ -1,0 +1,29 @@
+<div id="newset">
+  <p>Proto-form for {{form}} ‘{{gloss}}’ ({{langname}})</p>
+  <table>
+    <tbody>
+      <tr>
+        <td>Proto-Language</td>
+        <td>
+          <select id="plangid" method="GET" action="/">
+            {% for plangid, plangname in plangs %}
+              <option value={{plangid}}>{{plangname}}</option>
+            {% endfor %}
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td>Proto-Form</td>
+        <td><input id="protoform" type="text" value=""></td>
+      </tr>
+      <tr>
+        <td>Proto-Gloss</td>
+        <td><input id="protogloss" type="text" value=""></td>
+      </tr>
+      <tr>
+        <td>Morph Index</td>
+        <td><input id="morph_index" type="number" min=0 max={{num_morphs}} value=0></td>
+      </tr>
+    </tbody>
+  </table>
+</div>

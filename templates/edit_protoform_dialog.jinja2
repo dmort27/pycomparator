@@ -1,0 +1,21 @@
+<table id="newprotoform{{prefid}}">
+  <tbody>
+    <tr>
+      <td>Language</td>
+      <td>
+        <select id="langid" method="GET" action="/">
+          {% for langid, langname in langs %}
+            <option value={{langid}}>{{langname}}</option>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td>Form</td>
+      <td><input id="form" type="text" value=""></td>
+    </tr>
+    <tr>
+      <td>Gloss</td>
+      <td><input id="gloss" type="text" value=""></td>
+    </tr>
+  </tbody>
+</table>

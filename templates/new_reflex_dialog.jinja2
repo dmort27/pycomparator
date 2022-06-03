@@ -1,7 +1,7 @@
 <table id="newreflex">
   <tbody>
     <tr>
-      <td>Language Name</td>
+      <td>Language</td>
       <td>
         <select id="langid" method="GET" action="/">
           {% for langid, langname in langs %}
@@ -12,7 +12,7 @@
     </tr>
     <tr>
       <td>Source ID</td>
-      <td><input id="sourceid" type="text" value=0></td>
+      <td><input id="sourceid" type="number" value=0></td>
     </tr>
     <tr>
       <td>Form</td>

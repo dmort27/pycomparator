@@ -2,68 +2,7 @@
 /*eslint no-undef: "error"*/
 
 $(document).ready(function () {
-  
-  //////////////////////////////////////////
-  // Add reflexes to master list
-  //////////////////////////////////////////
-  
-  
-  // Totally wrong
-  
-  // function newReflex() {
-  //   console.log('Adding reflex');
-  //   $.ajax({
-  //     url: '/newreflexdialog',
-  //     data: {},
-  //     dataType: 'html',
-  //     success: newReflexDialog
-  //   })
-  // }
-  
-  // function newReflexDialog() {
-  //   console.log("Add reflex");
-  //   $.ajax({
-  //     url: '/newreflexdialog',
-  //     data: {},
-  //     dataType: 'html',
-  //     success: addNewReflex
-  //   });
-  //   $('#newreflex').dialog({
-  //     title: 'Add Reflex',
-  //     buttons: [{
-  //       text: 'Add',
-  //       click: addNewReflex
-  //     },
-  //     {
-  //       text: 'Cancel',
-  //       click: function() {
-  //         console.log('Cancel');
-  //         $(this).dialog('close');
-  //       }
-  //     }]
-  //   })
-  // }
-  
-  // function addNewReflex() {
-  //   var langid = $('#langname').val();
-  //   var form = $('#form').val();
-  //   var gloss = $('#gloss').val();
-  //   var sourceid = $('#sourceid').val();
-  //   $.ajax({
-  //     type: 'GET',
-  //     url: '/addnewreflex',
-  //     data: {
-  //       langid: langid,
-  //       sourceid: sourceid,
-  //       form: form,
-  //       gloss: gloss
-  //     },
-  //     dataType: 'json'
-  //   });
-  //   reflexes.ajax.reload();
-  //   $(this).dialog.close();
-  // }
-  
+   
   function newReflex() {
     $.ajax({
       url: '/newreflexdialog',
@@ -112,6 +51,7 @@ $(document).ready(function () {
     console.log('Insert langid:' + langid + ' sourceid:' + sourceid + ' form:' + form + ' gloss:' + gloss);
     $(this).dialog('close');
   }
+  
   //////////////////////////////////////////
   // Add reflexes to cognate sets
   //////////////////////////////////////////
@@ -249,6 +189,74 @@ function deleteReflexes() {
       }
     });
   });
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Add cognate sets
+///////////////////////////////////////////////////////////////////////////////
+
+function newSet() {
+  var selection = reflexes.rows({
+    selected: true
+  }).data();
+  var etymon = selection[0];
+  if (typeof etymon !== 'undefined') {
+    console.log('etymon[2]=' + etymon[2])
+    $.ajax({
+      refid: etymon[0],
+      url: '/newsetdialog',
+      data: {
+        refid: etymon[0],
+        langname: etymon[1],
+        form: etymon[2],
+        gloss: etymon[3]
+      },
+      dataType: 'html',
+      success: newSetDialog
+    });
+  }
+}
+
+function newSetDialog(data) {
+  var refid = this.refid;
+  $('#dialogs').append(data);
+  $('#newset').data('refid', refid).dialog({
+    title: 'New Correspondence Set',
+    buttons: [{
+      text: 'Add',
+      click: addNewSet
+    },
+    {
+      text: 'Cancel',
+      click: function() {
+        console.log('Cancel');
+        $(this).dialog('close');
+      }
+    }]
+  })
+}
+
+function addNewSet() {
+  var refid = $(this).data('refid');
+  var protoform = $('#protoform').val();
+  var protogloss = $('#protogloss').val();
+  var plangid = $('#plangid').val();
+  var morph_index = $('#morph_index').val();
+  $.ajax({
+    type: 'GET',
+    url: '/addnewset',
+    data: {
+      refid: refid,
+      plangid: plangid,
+      protoform: protoform,
+      protogloss: protogloss,
+      morph_index: morph_index
+    },
+    dataType: 'json'
+  });
+  protoforms.ajax.reload();
+  console.log('Added new set:' + ' protoform: ' + protoform + ' protogloss: ' + protogloss);
+  $(this).dialog('close');
 }
 
 //////////////////////////////////////////
@@ -426,6 +434,7 @@ function popupSupportingDialog(html) {
           success: function() {
             console.log('Deleted protoform');
             protoforms.ajax.reload();
+            supporting.ajax.reload();
           }
         });
       });
@@ -457,6 +466,10 @@ function popupSupportingDialog(html) {
         type: "GET"
       },
       buttons: [
+        {
+          text: 'New Set from Reflex',
+          action: newSet
+        },
         {
           text: 'Edit',
           action: editProtoform
