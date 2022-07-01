@@ -363,7 +363,7 @@ def find_pot_cogs():
     langid = request.args.get('langid', 0, type=int)
     form = request.args.get('form', '', type=str)
     gloss = request.args.get('gloss', '', type=str)
-    find_potential_cognates(langid, form, gloss, 10)
+    find_potential_cognates(langid, form, gloss, 2)
     return jsonify({'success': 'Reflexes successfully ranked'})
 
 
