@@ -2,7 +2,7 @@
 /*eslint no-undef: "error"*/
 
 $(document).ready(function () {
-   
+  
   function newReflex() {
     $.ajax({
       url: '/newreflexdialog',
@@ -69,7 +69,7 @@ $(document).ready(function () {
     .data();
     for (var i = 0; i < refSelection.length; i++) {
       for (var j = 0; j < protoSelection.length; j++) {
-        var refid = refSelection[i][0];
+        var refid = refSelection[i][1];
         var prefid = protoSelection[j][0];
         var plangid = protoSelection[j][1];
         console.log('Adding ' + refid + ' to ' + prefid + ' in ' + plangid)
@@ -94,13 +94,88 @@ $(document).ready(function () {
   }
   
   //////////////////////////////////////////
+  // Add potential cognates to cognate sets
+  //////////////////////////////////////////
+
+  function addPotCogsToSupportingForms() {
+    var refSelection = potcogs
+    .rows({
+      selected: true
+    })
+    .data();
+    var protoSelection = protoforms
+    .rows({
+      selected: true
+    })
+    .data();
+    for (var i = 0; i < refSelection.length; i++) {
+      for (var j = 0; j < protoSelection.length; j++) {
+        var refid = refSelection[i][1];
+        var prefid = protoSelection[j][0];
+        var plangid = protoSelection[j][1];
+        console.log('Adding ' + refid + ' to ' + prefid + ' in ' + plangid)
+        $.ajax({
+          url: '/addsupporting',
+          data: {
+            refid: refid,
+            prefid: prefid,
+            plangid: plangid
+          },
+          dataType: 'html',
+          success: popupSupportingDialog,
+          context: {
+            refid: refid,
+            prefid: prefid,
+            plangid: plangid,
+            morph_index: 0
+          }
+        });
+      }
+    }
+  }
+
+  //////////////////////////////////////////
   // Remove reflexes from cognate sets
   //////////////////////////////////////////
   
-  // function removeReflexFromSupportingForms() {
-  //   console.log('Remove reflex');
-  // }
+  function removeSupportingFormFromSet() {
+    console.log('Remove reflex');
+    var supportingSelection = supporting
+    .rows({
+      selected: true
+  })
+    .data();
+    var protoSelection = protoforms
+    .rows({
+      selected: true
+    })
+    .data();
+    for (var i = 0; i < supportingSelection.length; i++) {
+      var refid = supportingSelection[i][0]; // Check that refid is in the first field
+      var form = supportingSelection[i][2];
+      var gloss = supportingSelection[i][3];
+      var prefid = protoSelection[0][0];
+      console.log('Removing ' + refid + ' ' + form + ' ' + gloss + 'from cognate set ' + prefid);
+      $.ajax({
+        url: '/removesupporting',
+        data: {
+          refid: refid,
+          prefid: prefid
+        },
+        datatype: 'json',
+        success: reloadSupporting,
+        context: {
+          refid: refid,
+          prefid: prefid,
+        }
+      });
+    }
+  }
   
+function reloadSupporting() {
+  supporting.ajax.reload();
+}
+
   //////////////////////////////////////////
   // Edit reflexes
   //////////////////////////////////////////
@@ -114,10 +189,11 @@ $(document).ready(function () {
         refid: selection[i][0],
         url: '/reflexdialog',
         data: {
-          refid: selection[i][0],
-          lname: selection[i][1],
-          form: selection[i][2],
-          gloss: selection[i][3],
+          langid: selection[i][0],
+          refid: selection[i][1],
+          lname: selection[i][2],
+          form: selection[i][3],
+          gloss: selection[i][4],
         },
         dataType: 'html',
         success: editReflexDialog
@@ -166,6 +242,34 @@ function updateReflex() {
 }
 
 //////////////////////////////////////////
+// Find Potential Cognates
+//////////////////////////////////////////
+
+function findPotCogs() {
+  var selection = reflexes.rows({
+    selected: true
+  }).data();
+  console.log('Searching for matches: ' + selection[0][3] + ' with gloss ' + selection[0][4]);
+    $.ajax({
+      refid: selection[0][1],
+      url: '/findpotcogs',
+      data: {
+        langid: selection[0][0],
+        refid: selection[0][1],
+        lname: selection[0][2],
+        form: selection[0][3],
+        gloss: selection[0][4],
+      },
+      dataType: 'html',
+      success: updatePotCogs
+    });
+}
+
+function updatePotCogs() {
+  potcogs.ajax.reload();
+}
+
+//////////////////////////////////////////
 // Delete reflexes
 //////////////////////////////////////////
 
@@ -206,10 +310,11 @@ function newSet() {
       refid: etymon[0],
       url: '/newsetdialog',
       data: {
-        refid: etymon[0],
-        langname: etymon[1],
-        form: etymon[2],
-        gloss: etymon[3]
+        langid: etymon[0],
+        refid: etymon[1],
+        lname: etymon[2],
+        form: etymon[3],
+        gloss: etymon[4]
       },
       dataType: 'html',
       success: newSetDialog
@@ -483,7 +588,7 @@ function popupSupportingDialog(html) {
     
     var reflexes = $('#reflexes').DataTable({
       dom: 'Blrtp',
-      lengthMenu: [20, 40, 60],
+      lengthMenu: [10, 20, 30],
       select: true,
       serverSide: true,
       ajax: {
@@ -506,11 +611,36 @@ function popupSupportingDialog(html) {
         {
           text: 'Delete',
           action: deleteReflexes
+        },
+        {
+          text: 'Potential Cognates',
+          action: findPotCogs
         }
       ],
       columnDefs: [{
-        targets: [0],
+        targets: [0, 1],
         visible: false,
+      }]
+    });
+    
+    var potcogs = $('#potcogs').DataTable({
+      dom: 'Blrtp',
+      lengthMenu: [10, 20, 30],
+      select: true,
+      serverSide: true,
+      ajax: {
+        url: "/potcogs",
+        type: "GET"
+      },
+      buttons: [
+        {
+          text: "Add to Set",
+          action: addPotCogsToSupportingForms
+        }
+      ],
+      columnDefs: [{
+        targets: [0, 1, 5],
+        visible: false
       }]
     });
     
@@ -536,7 +666,8 @@ function popupSupportingDialog(html) {
           action: editMorphOfSupportingForm
         },
         {
-          text: 'Remove from Set'
+          text: 'Remove from Set',
+          action: removeSupportingFormFromSet
         }
       ]
     });
@@ -549,7 +680,12 @@ function popupSupportingDialog(html) {
       var title = $(this).text();
       $(this).html('<input type="text" placeholder="Search ' + title + '" />');
     });
-    
+
+    $('#potcogs tfoot th').each(function() {
+      var title = $(this).text();
+      $(this).html('<input type="text" placeholder="Search ' + title + '" />');
+    });
+
     $('#protoforms tfoot th').each(function() {
       var title = $(this).text();
       $(this).html('<input type="text" placeholder="Search ' + title + '" />');
@@ -564,6 +700,15 @@ function popupSupportingDialog(html) {
       });
     });
     
+    potcogs.columns().eq(0).each(function(colIdx) {
+      $('input', potcogs.column(colIdx).footer()).on('keyup change', function() {
+        potcogs
+        .column(colIdx)
+        .search(this.value)
+        .draw();
+      });
+    });
+
     protoforms.columns().eq(0).each(function(colIdx) {
       $('input', protoforms.column(colIdx).footer()).on('keyup change', function() {
         protoforms

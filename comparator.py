@@ -1,12 +1,32 @@
 import json
+# import panphon.distance
 # from selectors import EpollSelector
-import sqlite3
 import re
+import sqlite3
+import sys
+from typing import Any
+import numpy as np
+import panphon2
+from markdownTable import markdownTable
+from numpy import dot
+from numpy.linalg import norm
+from numpy.random import rand
+from scipy.spatial.distance import cosine
+from sklearn.metrics.pairwise import cosine_similarity
+import gensim.downloader as api
+from flask import Flask, g, jsonify, render_template, request
 
-from flask import Flask, jsonify, g, request, render_template
 app = Flask(__name__)
 
+print('Loading word2vec...')
+wv = api.load('word2vec-google-news-300') 
+print('Done.')
+
 # Database setup
+
+print('Loading FeatureTable...')
+ft = panphon2.FeatureTable()
+print('Done.')
 
 DATABASE = 'db/borderlands.sqlite3'
 
@@ -21,6 +41,57 @@ def close_connection(exception):
     db = getattr(g, '_database', None)
     if db is not None:
         db.close()
+
+##############################################################################
+# Utility functions for cognate detection
+##############################################################################
+
+def compute_gloss_embedding(gloss: str) -> Any:
+    vectors = []
+    global wv
+    global ft
+    for word in re.findall('[A-Za-z]+', gloss):
+        try:
+            vectors.append(wv[word])
+        except KeyError:
+            vectors.append(rand(300))
+    return sum(vectors)
+
+def compute_similarity_score(form1: str, form2: str, gloss1: str, gloss2: str, beta: float) -> float:
+    # fd = dist.feature_edit_distance_div_maxlen(form1, form2) + 0.000000001
+    maxlen = max(len(form1), len(form2))
+    fd = ft.feature_edit_distance(form1, form2) / maxlen
+    v1 = compute_gloss_embedding(gloss1)
+    v2 = compute_gloss_embedding(gloss2)
+    np.seterr(invalid='ignore')
+    cos_dist = cosine(v1, v2)
+    # score = float(((1 + beta**2) * cos_dist * fd) / (beta**2 * cos_dist + fd + sys.float_info.epsilon))
+    score = cos_dist + (fd * beta)
+    return score
+
+def find_potential_cognates(langid1: int, form1: str, gloss1: str, beta: float) -> "list[list[str]]":
+    c = get_db().cursor()
+    # c.execute('''CREATE TABLE IF NOT EXISTS "potcogs" (
+    #      "refid" integer NOT NULL PRIMARY KEY,
+    #      "langid" integer NOT NULL,
+    #      "form" text NOT NULL,
+    #      "gloss" text,
+    #      "sim" real NOT NULL)''')
+    # get_db().commit()
+    c.execute('''DELETE FROM potcogs''')
+    get_db().commit()
+    print('Retrieving reflexes...')
+    c.execute('''SELECT DISTINCT refid, langid, form, gloss 
+                 FROM reflexes
+                 WHERE langid IS NOT ?''', (langid1,))
+    results = []
+    print('Computing similarities...')
+    for (refid2, langid2, form2, gloss2) in c:
+        sim = compute_similarity_score(form1, form2, gloss1, gloss2, beta)
+        results.append([refid2, langid2, form2, gloss2, sim])
+    c.executemany('''INSERT INTO potcogs (refid, langid, form, gloss, sim) 
+                     VALUES (?, ?, ?, ?, ?)''', results)
+    get_db().commit()
 
 ##############################################################################
 # Utility functions for presenting parsed forms
@@ -54,39 +125,46 @@ def root():
     return render_template('index.jinja2')
 
 ##############################################################################
-# Data for the three main tables
+# Data for the four main tables
 ##############################################################################
 
 @app.route('/reflexes', methods=['GET', 'POST'])
 def reflexes():
-    cols = ['refid', 'lname', 'form', 'gloss']
+    # All data should have the following shape
+    cols = ['reflexes.langid', 'refid', 'lname', 'form', 'gloss']
     # limit parameters
     start = request.args.get('start', 0, type=int)
     length = request.args.get('length', 0, type=int)
     draw = request.args.get('draw', 0, type=int)
     # Search strings for language, form, and gloss
-    lang_search = '%{}%'.format(request.args.get('columns[1][search][value]', '', type=str))
-    form_search = '%{}%'.format(request.args.get('columns[2][search][value]', '', type=str))
-    gloss_search = '%{}%'.format(request.args.get('columns[3][search][value]', '', type=str))
+    lang_search = '%{}%'.format(request.args.get('columns[2][search][value]', '', type=str))
+    form_search = '%{}%'.format(request.args.get('columns[3][search][value]', '', type=str))
+    gloss_search = '%{}%'.format(request.args.get('columns[4][search][value]', '', type=str))
     # Order
-    order = cols[request.args.get('order[0][column]', 0, type=int)]
+    order = cols[request.args.get('order[0][column]', 2, type=int)]
     direction = request.args.get('order[0][dir]', 'asc', type=str)
     if direction not in ['asc', 'desc']: direction = 'asc'
-    ordering_term = '{} {}'.format(order, direction)
+    ordering_term = f'{order} {direction}'
+    print(ordering_term)
     # Database interactions
     c = get_db().cursor()
     c.execute('SELECT COUNT(*) FROM reflexes;')
     total = int(c.fetchone()[0])
-    c.execute("SELECT COUNT(*) " +
-              "FROM reflexes JOIN langnames on langnames.langid=reflexes.langid " +
-              "WHERE langnames.name LIKE ? AND form LIKE ? AND gloss LIKE ?",
+    c.execute('''SELECT COUNT(*)
+                 FROM reflexes JOIN langnames on langnames.langid=reflexes.langid
+                 WHERE langnames.name LIKE ? AND form LIKE ? AND gloss LIKE ?''',
               (lang_search, form_search, gloss_search))
     filtered_total = int(c.fetchone()[0])
-    c.execute(("SELECT refid, langnames.name AS lname, form, gloss " +
-              "FROM reflexes JOIN langnames ON langnames.langid=reflexes.langid " +
-              "WHERE lname LIKE ? AND form LIKE ? AND gloss LIKE ?" +
-              "ORDER BY %s " +
-              "LIMIT ? OFFSET ?") % ordering_term,
+    c.execute(("""SELECT reflexes.langid,
+                         refid,
+                         langnames.name AS lname,
+                         form,
+                         gloss
+                  FROM reflexes
+                  JOIN langnames ON langnames.langid=reflexes.langid
+                  WHERE lname LIKE ? AND form LIKE ? AND gloss LIKE ?
+                  ORDER BY %s
+                  LIMIT ? OFFSET ?""") % ordering_term,
               (lang_search, form_search, gloss_search,
                length, start))
     reflexes = c.fetchall()
@@ -94,6 +172,59 @@ def reflexes():
                     'recordsTotal': total,
                     'recordsFiltered': filtered_total,
                     'data': reflexes})
+
+@app.route('/potcogs', methods=['GET', 'POST'])
+def potcogs():
+    # All data for potcogs should take this shape:
+    cols = ['potcogs.langid', 'refid', 'lname', 'form', 'gloss', 'sim']
+    # limit parameters
+    start = request.args.get('start', 0, type=int)
+    length = request.args.get('length', 0, type=int)
+    draw = request.args.get('draw', 0, type=int)
+    # Search strings for language, form, and gloss
+    lang_search = '%{}%'.format(request.args.get('columns[2][search][value]', '', type=str))
+    form_search = '%{}%'.format(request.args.get('columns[3][search][value]', '', type=str))
+    gloss_search = '%{}%'.format(request.args.get('columns[4][search][value]', '', type=str))
+    # Order
+    order = cols[request.args.get('order[0][column]', 0, type=int)]
+    direction = request.args.get('order[0][dir]', 'asc', type=str)
+    if direction not in ['asc', 'desc']: direction = 'asc'
+    ordering_term = f'{order} {direction}'
+    # Database interactions
+    c = get_db().cursor()
+    # lnames is missing because that comes from a join with langnames
+    c.execute('''CREATE TABLE IF NOT EXISTS "potcogs" (
+         "langid" integer NOT NULL,
+         "refid" integer NOT NULL PRIMARY KEY,
+         "form" text NOT NULL,
+         "gloss" text,
+         "sim" real NOT NULL)''')
+    get_db().commit()
+    c.execute('SELECT COUNT(*) FROM potcogs;')
+    total = int(c.fetchone()[0])
+    c.execute('''SELECT COUNT(*)
+              FROM potcogs JOIN langnames on langnames.langid=potcogs.langid
+              WHERE langnames.name LIKE ? AND form LIKE ? AND gloss LIKE ?''',
+              (lang_search, form_search, gloss_search))
+    filtered_total = int(c.fetchone()[0])
+    c.execute(('''SELECT DISTINCT
+                    potcogs.langid,
+                    refid,
+                    langnames.name AS lname,
+                    form,
+                    gloss,
+                    sim
+              FROM potcogs JOIN langnames ON langnames.langid=potcogs.langid
+              WHERE lname LIKE ? AND form LIKE ? AND gloss LIKE ?
+              ORDER BY %s
+              LIMIT ? OFFSET ?''') % 'sim ASC',
+              (lang_search, form_search, gloss_search,
+               length, start))
+    potcogs = c.fetchall()
+    return jsonify({'draw': draw,
+                    'recordsTotal': total,
+                    'recordsFiltered': filtered_total,
+                    'data': potcogs})
 
 @app.route('/protoforms')
 def protoforms():
@@ -185,7 +316,7 @@ def add_new_reflex():
     return jsonify({'success': 'Entry successfully added'})
 
 ##############################################################################
-# Add reflexes to cognate sets
+# Add reflexes to and remove reflexes from cognate sets
 ##############################################################################
 
 @app.route('/addsupporting')
@@ -211,6 +342,30 @@ def add_supporting_form():
                            refid=refid,
                            morphs=morphs,
                            morph_index=morph_index)
+
+@app.route('/removesupporting')
+def remove_supporting_form():
+    print('/removesupporting')
+    refid = request.args.get('refid', 0, type=int)
+    prefid = request.args.get('prefid', 0, type=int)
+    print(f'Remove {refid} from {prefid}')
+    c = get_db().cursor()
+    c.execute('''DELETE FROM reflex_of WHERE refid=? and prefid=?''', (refid, prefid))
+    get_db().commit()
+    return jsonify({'success': 'Supporting form successfully removed'})
+
+##############################################################################
+# Find potential cognates
+##############################################################################
+
+@app.route('/findpotcogs')
+def find_pot_cogs():
+    langid = request.args.get('langid', 0, type=int)
+    form = request.args.get('form', '', type=str)
+    gloss = request.args.get('gloss', '', type=str)
+    find_potential_cognates(langid, form, gloss, 10)
+    return jsonify({'success': 'Reflexes successfully ranked'})
+
 
 ##############################################################################
 # Remove reflexes (supporting forms) from cognate sets
