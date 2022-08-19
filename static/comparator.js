@@ -186,7 +186,7 @@ function reloadSupporting() {
     }).data();
     for (var i = 0; i < selection.length; i++) {
       $.ajax({
-        refid: selection[i][0],
+        refid: selection[i][1],
         url: '/reflexdialog',
         data: {
           langid: selection[i][0],
@@ -204,7 +204,7 @@ function reloadSupporting() {
   function editReflexDialog(data) {
     var refid = this.refid;
     $('#dialogs').append(data);
-    console.log('#edit' + refid);
+    console.log('#edit' + refid + ' reflex');
     $('#edit' + refid).data('refid', refid).dialog({
       title: 'Edit Reflex',
       buttons: [{
@@ -378,9 +378,9 @@ function editProtoform() {
       url: '/reflexdialog',
       data: {
         refid: selection[i][0],
-        lname: selection[i][1],
-        form: selection[i][2],
-        gloss: selection[i][3],
+        lname: selection[i][2],
+        form: selection[i][3],
+        gloss: selection[i][4],
       },
       dataType: 'html',
       success: editProtoformDialog
