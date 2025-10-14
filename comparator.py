@@ -7,7 +7,7 @@ import sys
 from typing import Any
 import numpy as np
 import panphon2
-from markdownTable import markdownTable
+# from markdowntable import markdownTable
 from numpy import dot
 from numpy.linalg import norm
 from numpy.random import rand
