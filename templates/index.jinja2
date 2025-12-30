@@ -1,62 +1,68 @@
 <!DOCTYPE html>
 <html>
-<header>
+<head>
   <title>PyComparator</title>
-
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='datatables.min.css') }}"/>
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='jquery-ui.min.css') }}"/>
-<script type="text/javascript" src="{{ url_for('static', filename='jquery.min.js') }}"></script>
-<script type="text/javascript" src="{{ url_for('static', filename='jquery-ui.min.js') }}"></script>
-<script type="text/javascript" src="{{ url_for('static', filename='datatables-combined.min.js') }}"></script>
-</header>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='datatables.min.css') }}"/>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='jquery-ui.min.css') }}"/>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='comparator.css') }}"/>
+</head>
 <body>
-  <div class="tables">
-    <div class="reflexes">
-      <table id="reflexes" class="cell-border compact stripe">
-        <thead>
-          <tr>
-            <th>LangID</th>
-            <th>ID</th>
-            <th>Language</th>
-            <th>Form</th>
-            <th>Gloss</th>
-          </tr>
-        </thead>
-        <tfoot>
-          <tr>
-            <th>LangID</th>
-            <th>ID</th>
-            <th>Language</th>
-            <th>Form</th>
-            <th>Gloss</th>
-          </tr>
-        </tfoot>
-      </table>
-      <table id="potcogs" class="cell-border compact stripe">
-        <thead>
-          <tr>
-            <th>LangID</th>
-            <th>ID</th>
-            <th>Language</th>
-            <th>Form</th>
-            <th>Gloss</th>
-            <th>Sim</th>
-          </tr>
-        </thead>
-        <tfoot>
-          <tr>
-            <th>LangID</th>
-            <th>ID</th>
-            <th>Language</th>
-            <th>Form</th>
-            <th>Gloss</th>
-            <th>Sim</th>
-          </tr>
-        </tfoot>
-      </table>
+  <div class="tables-grid">
+    <div class="table-container">
+      <h3>Reflexes (Lexicon)</h3>
+      <div class="table-wrapper">
+        <table id="reflexes" class="cell-border compact stripe">
+          <thead>
+            <tr>
+              <th>LangID</th>
+              <th>ID</th>
+              <th>Language</th>
+              <th>Form</th>
+              <th>Gloss</th>
+            </tr>
+          </thead>
+          <tfoot>
+            <tr>
+              <th>LangID</th>
+              <th>ID</th>
+              <th>Language</th>
+              <th>Form</th>
+              <th>Gloss</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
-    <div class="reconstructions">
-      <div class="protoforms">
+    <div class="table-container">
+      <h3>Potential Cognates</h3>
+      <div class="table-wrapper">
+        <table id="potcogs" class="cell-border compact stripe">
+          <thead>
+            <tr>
+              <th>LangID</th>
+              <th>ID</th>
+              <th>Language</th>
+              <th>Form</th>
+              <th>Gloss</th>
+              <th>Sim</th>
+            </tr>
+          </thead>
+          <tfoot>
+            <tr>
+              <th>LangID</th>
+              <th>ID</th>
+              <th>Language</th>
+              <th>Form</th>
+              <th>Gloss</th>
+              <th>Sim</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+    <div class="table-container">
+      <h3>Reconstructions</h3>
+      <div class="table-wrapper">
         <table id="protoforms" class="cell-border compact stripe">
           <thead>
             <tr>
@@ -78,22 +84,26 @@
           </tfoot>
         </table>
       </div>
-      <div class="supporting"></div>
-      <table id="supporting" class="cell-border compact stripe">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Language</th>
-            <th>Form</th>
-            <th>Gloss</th>
-            <th>Morph Index</th>
-          </tr>
-        </thead>
-      </table>
+    </div>
+    <div class="table-container">
+      <h3>Supporting Forms</h3>
+      <div class="table-wrapper">
+        <table id="supporting" class="cell-border compact stripe">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Language</th>
+              <th>Form</th>
+              <th>Gloss</th>
+              <th>Morph Index</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
     </div>
   </div>
   <div id='dialogs'></div>
-  <script type=text/javascript src="{{ url_for('static', filename='jquery-3.4.1.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('static', filename='jquery-3.4.1.js') }}"></script>
   <script type="text/javascript" src="{{ url_for('static', filename='datatables.js') }}"></script>
   <script type="text/javascript" src="{{ url_for('static', filename='jquery-ui.js') }}"></script>
   <script type="text/javascript" src="{{ url_for('static', filename='comparator.js') }}"></script>
