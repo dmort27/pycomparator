@@ -1,1 +1,4 @@
 db/embedder_cache.pkl
+__pycache__
+skills.md
+*.log
