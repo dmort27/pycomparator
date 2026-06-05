@@ -71,8 +71,27 @@ alpha   recall@5    recall@10    recall@20        MRR
 - numpy
 - flask
 
+### IPA Normalization (June 2026)
+
+The system normalizes transcriptions to canonical IPA using `ipa_normalize.py`:
+
+1. **Tone removal**: NFD decomposition removes combining tone marks (´ ` ˆ ˇ etc.)
+2. **Affricate ligatures**: ts→t͡s, dʒ→d͡ʒ, tʃ→t͡ʃ, etc.
+3. **Double vowels**: aa→aː, ee→eː, etc.
+4. **y→j conversion**: When not between consonants
+
+**Database schema**: `ipaform` column stores normalized forms.
+
+**Population**: `populate_ipaform.py` batch-updates all reflexes (42,570 total, 110 empty).
+
+**Usage**: ipaform is used throughout for phonetic operations:
+- `comparator.py`: /findpotcogs, /alignment, /addnewreflex, /updatereflex, /addnewset
+- `correspondence.py`: extract_correspondence_sets_for_protolang() uses ipaform for alignment
+- `embeddings.py`: build_embedder_from_db() uses ipaform for TF-IDF vectorization
+
 ### Future Improvements
 
 - [x] Learn optimal alpha from ground-truth cognate sets (reflex_of table) ✓ Done: alpha=0.4
+- [x] IPA normalization for consistent phonetic matching ✓ Done: ipaform column
 - [ ] Optional: sentence-transformers for higher-quality semantic embeddings
 - [ ] Optional: FAISS index for sub-linear search if lexicon grows large

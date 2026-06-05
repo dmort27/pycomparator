@@ -251,12 +251,14 @@ def build_embedder_from_db(db_path: str, alpha: float = 0.4) -> tuple[CognateEmb
     
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    c.execute("SELECT refid, langid, form, gloss FROM reflexes")
+    # Use ipaform for phonetic embeddings (normalized IPA without tones)
+    c.execute("SELECT refid, langid, ipaform, gloss FROM reflexes")
     rows = c.fetchall()
     conn.close()
     
     refids = [r[0] for r in rows]
     langids = [r[1] for r in rows]
+    # Use ipaform for phonetic similarity; fallback to empty string if NULL
     forms = [r[2] or "" for r in rows]
     glosses = [r[3] or "" for r in rows]
     

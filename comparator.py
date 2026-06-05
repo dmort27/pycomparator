@@ -8,6 +8,7 @@ from flask import Flask, g, jsonify, render_template, request
 
 from alignment import CognateAligner
 from embeddings import CognateEmbedder, build_embedder_from_db
+from ipa_normalize import normalize_to_ipa
 
 app = Flask(__name__)
 
@@ -33,11 +34,41 @@ else:
 print(f"Done. Loaded {len(embedder.refids)} reflexes.")
 
 
+def regexp(pattern, value):
+    """SQLite REGEXP function implementation."""
+    if value is None:
+        return False
+    try:
+        return bool(re.search(pattern, str(value), re.IGNORECASE))
+    except re.error:
+        return False
+
+
 def get_db():
     db = getattr(g, "_database", None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
+        # Register the REGEXP function
+        db.create_function("REGEXP", 2, regexp)
     return db
+
+
+def build_search_condition(column: str, search_value: str, params: list) -> str:
+    """Build search condition - uses REGEXP if it looks like regex, else LIKE."""
+    if not search_value:
+        params.append("%")
+        return f"{column} LIKE ?"
+    
+    # Check if it looks like a regex (has special characters)
+    regex_chars = r'^$.*+?{}[]|()\\'
+    is_regex = any(c in search_value for c in regex_chars)
+    
+    if is_regex:
+        params.append(search_value)
+        return f"{column} REGEXP ?"
+    else:
+        params.append(f"%{search_value}%")
+        return f"{column} LIKE ?"
 
 
 @app.teardown_appcontext
@@ -52,13 +83,13 @@ def close_connection(exception):
 ##############################################################################
 
 
-def find_potential_cognates(langid1: int, form1: str, gloss1: str, alpha: float) -> None:
+def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: float) -> None:
     """
     Find potential cognates using pre-computed embeddings.
     
     Args:
         langid1: Language ID to exclude from results
-        form1: IPA form to match
+        ipaform1: Normalized IPA form to match (without tones)
         gloss1: Gloss to match
         alpha: Weight for phonetic vs semantic (higher = more phonetic)
     """
@@ -67,7 +98,7 @@ def find_potential_cognates(langid1: int, form1: str, gloss1: str, alpha: float)
     
     # Find similar items using embeddings (fast!)
     similar = embedder.find_similar(
-        query_form=form1,
+        query_form=ipaform1,
         query_gloss=gloss1,
         exclude_langid=langid1,
         langids=langids,
@@ -139,57 +170,64 @@ def root():
 @app.route("/reflexes", methods=["GET", "POST"])
 def reflexes():
     # All data should have the following shape
-    # Added is_supporting column (1 if reflex is in a cognate set, 0 otherwise)
-    cols = ["reflexes.langid", "refid", "lname", "form", "gloss", "is_supporting"]
+    # Added is_supporting and ipaform columns
+    cols = ["reflexes.langid", "refid", "lname", "form", "gloss", "is_supporting", "ipaform"]
     # limit parameters
     start = request.args.get("start", 0, type=int)
     length = request.args.get("length", 0, type=int)
     draw = request.args.get("draw", 0, type=int)
     # Search strings for language, form, and gloss
-    lang_search = "%{}%".format(
-        request.args.get("columns[2][search][value]", "", type=str)
-    )
-    form_search = "%{}%".format(
-        request.args.get("columns[3][search][value]", "", type=str)
-    )
-    gloss_search = "%{}%".format(
-        request.args.get("columns[4][search][value]", "", type=str)
-    )
+    lang_search = request.args.get("columns[2][search][value]", "", type=str)
+    form_search = request.args.get("columns[3][search][value]", "", type=str)
+    gloss_search = request.args.get("columns[4][search][value]", "", type=str)
     # Order
     order = cols[request.args.get("order[0][column]", 2, type=int)]
     direction = request.args.get("order[0][dir]", "asc", type=str)
     if direction not in ["asc", "desc"]:
         direction = "asc"
     ordering_term = f"{order} {direction}"
-    print(ordering_term)
+    
+    # Build search conditions with regex support
+    params = []
+    lang_cond = build_search_condition("langnames.name", lang_search, params)
+    form_cond = build_search_condition("form", form_search, params)
+    gloss_cond = build_search_condition("gloss", gloss_search, params)
+    where_clause = f"WHERE {lang_cond} AND {form_cond} AND {gloss_cond}"
+    
     # Database interactions
     c = get_db().cursor()
     c.execute("SELECT COUNT(*) FROM reflexes;")
     total = int(c.fetchone()[0])
     c.execute(
-        """SELECT COUNT(*)
-                 FROM reflexes JOIN langnames on langnames.langid=reflexes.langid
-                 WHERE langnames.name LIKE ? AND form LIKE ? AND gloss LIKE ?""",
-        (lang_search, form_search, gloss_search),
+        f"""SELECT COUNT(*)
+            FROM reflexes JOIN langnames on langnames.langid=reflexes.langid
+            {where_clause}""",
+        params,
     )
     filtered_total = int(c.fetchone()[0])
+    
+    # Build params again for the main query (need lname alias)
+    params2 = []
+    lang_cond2 = build_search_condition("lname", lang_search, params2)
+    form_cond2 = build_search_condition("form", form_search, params2)
+    gloss_cond2 = build_search_condition("gloss", gloss_search, params2)
+    where_clause2 = f"WHERE {lang_cond2} AND {form_cond2} AND {gloss_cond2}"
+    
     c.execute(
-        (
-            """SELECT reflexes.langid,
-                         reflexes.refid,
-                         langnames.name AS lname,
-                         form,
-                         gloss,
-                         CASE WHEN reflex_of.refid IS NOT NULL THEN 1 ELSE 0 END AS is_supporting
-                  FROM reflexes
-                  JOIN langnames ON langnames.langid=reflexes.langid
-                  LEFT JOIN (SELECT DISTINCT refid FROM reflex_of) AS reflex_of ON reflex_of.refid=reflexes.refid
-                  WHERE lname LIKE ? AND form LIKE ? AND gloss LIKE ?
-                  ORDER BY %s
-                  LIMIT ? OFFSET ?"""
-        )
-        % ordering_term,
-        (lang_search, form_search, gloss_search, length, start),
+        f"""SELECT reflexes.langid,
+                   reflexes.refid,
+                   langnames.name AS lname,
+                   form,
+                   gloss,
+                   CASE WHEN reflex_of.refid IS NOT NULL THEN 1 ELSE 0 END AS is_supporting,
+                   ipaform
+            FROM reflexes
+            JOIN langnames ON langnames.langid=reflexes.langid
+            LEFT JOIN (SELECT DISTINCT refid FROM reflex_of) AS reflex_of ON reflex_of.refid=reflexes.refid
+            {where_clause2}
+            ORDER BY {ordering_term}
+            LIMIT ? OFFSET ?""",
+        params2 + [length, start],
     )
     reflexes = c.fetchall()
     return jsonify(
@@ -211,21 +249,23 @@ def potcogs():
     length = request.args.get("length", 0, type=int)
     draw = request.args.get("draw", 0, type=int)
     # Search strings for language, form, and gloss
-    lang_search = "%{}%".format(
-        request.args.get("columns[2][search][value]", "", type=str)
-    )
-    form_search = "%{}%".format(
-        request.args.get("columns[3][search][value]", "", type=str)
-    )
-    gloss_search = "%{}%".format(
-        request.args.get("columns[4][search][value]", "", type=str)
-    )
+    lang_search = request.args.get("columns[2][search][value]", "", type=str)
+    form_search = request.args.get("columns[3][search][value]", "", type=str)
+    gloss_search = request.args.get("columns[4][search][value]", "", type=str)
     # Order
     order = cols[request.args.get("order[0][column]", 0, type=int)]
     direction = request.args.get("order[0][dir]", "asc", type=str)
     if direction not in ["asc", "desc"]:
         direction = "asc"
     ordering_term = f"{order} {direction}"
+    
+    # Build search conditions with regex support
+    params = []
+    lang_cond = build_search_condition("langnames.name", lang_search, params)
+    form_cond = build_search_condition("form", form_search, params)
+    gloss_cond = build_search_condition("gloss", gloss_search, params)
+    where_clause = f"WHERE {lang_cond} AND {form_cond} AND {gloss_cond}"
+    
     # Database interactions
     c = get_db().cursor()
     # lnames is missing because that comes from a join with langnames
@@ -239,28 +279,33 @@ def potcogs():
     c.execute("SELECT COUNT(*) FROM potcogs;")
     total = int(c.fetchone()[0])
     c.execute(
-        """SELECT COUNT(*)
-              FROM potcogs JOIN langnames on langnames.langid=potcogs.langid
-              WHERE langnames.name LIKE ? AND form LIKE ? AND gloss LIKE ?""",
-        (lang_search, form_search, gloss_search),
+        f"""SELECT COUNT(*)
+            FROM potcogs JOIN langnames on langnames.langid=potcogs.langid
+            {where_clause}""",
+        params,
     )
     filtered_total = int(c.fetchone()[0])
+    
+    # Build params again for the main query (need lname alias)
+    params2 = []
+    lang_cond2 = build_search_condition("lname", lang_search, params2)
+    form_cond2 = build_search_condition("form", form_search, params2)
+    gloss_cond2 = build_search_condition("gloss", gloss_search, params2)
+    where_clause2 = f"WHERE {lang_cond2} AND {form_cond2} AND {gloss_cond2}"
+    
     c.execute(
-        (
-            """SELECT DISTINCT
-                    potcogs.langid,
-                    refid,
-                    langnames.name AS lname,
-                    form,
-                    gloss,
-                    sim
-              FROM potcogs JOIN langnames ON langnames.langid=potcogs.langid
-              WHERE lname LIKE ? AND form LIKE ? AND gloss LIKE ?
-              ORDER BY %s
-              LIMIT ? OFFSET ?"""
-        )
-        % "sim ASC",
-        (lang_search, form_search, gloss_search, length, start),
+        f"""SELECT DISTINCT
+                potcogs.langid,
+                refid,
+                langnames.name AS lname,
+                form,
+                gloss,
+                sim
+            FROM potcogs JOIN langnames ON langnames.langid=potcogs.langid
+            {where_clause2}
+            ORDER BY sim ASC
+            LIMIT ? OFFSET ?""",
+        params2 + [length, start],
     )
     potcogs = c.fetchall()
     return jsonify(
@@ -283,15 +328,9 @@ def protoforms():
     # Filter by refids (comma-separated list of reflex ids to find their protoforms)
     refids_param = request.args.get("refids", "", type=str)
     # Search strings for language, form, and gloss
-    lang_search = "%{}%".format(
-        request.args.get("columns[2][search][value]", "", type=str)
-    )
-    form_search = "%{}%".format(
-        request.args.get("columns[3][search][value]", "", type=str)
-    )
-    gloss_search = "%{}%".format(
-        request.args.get("columns[4][search][value]", "", type=str)
-    )
+    lang_search = request.args.get("columns[2][search][value]", "", type=str)
+    form_search = request.args.get("columns[3][search][value]", "", type=str)
+    gloss_search = request.args.get("columns[4][search][value]", "", type=str)
     # Order
     order = cols[request.args.get("order[0][column]", 0, type=int)]
     direction = request.args.get("order[0][dir]", "asc", type=str)
@@ -299,6 +338,17 @@ def protoforms():
         direction = "asc"
     ordering_term = "{} {}".format(order, direction)
     c = get_db().cursor()
+    
+    # Build search conditions with regex support
+    params = []
+    lang_cond = build_search_condition("langnames.name", lang_search, params)
+    form_cond = build_search_condition("form", form_search, params)
+    gloss_cond = build_search_condition("gloss", gloss_search, params)
+    
+    params2 = []
+    lang_cond2 = build_search_condition("lname", lang_search, params2)
+    form_cond2 = build_search_condition("form", form_search, params2)
+    gloss_cond2 = build_search_condition("gloss", gloss_search, params2)
     
     # If filtering by refids, find protoforms associated with those reflexes
     if refids_param:
@@ -331,57 +381,51 @@ def protoforms():
                 WHERE reflexes.refid IN (
                     SELECT DISTINCT prefid FROM reflex_of WHERE refid IN ({placeholders})
                 )
-                AND langnames.name LIKE ? AND form LIKE ? AND gloss LIKE ?
+                AND {lang_cond} AND {form_cond} AND {gloss_cond}
             )""",
-            refids + [lang_search, form_search, gloss_search],
+            refids + params,
         )
         filtered_total = int(c.fetchone()[0])
         
         c.execute(
-            (
-                f"""SELECT DISTINCT reflexes.refid, plangid, langnames.name AS lname, form, gloss
+            f"""SELECT DISTINCT reflexes.refid, plangid, langnames.name AS lname, form, gloss
                 FROM reflexes
                 INNER JOIN descendant_of ON plangid=reflexes.langid
                 JOIN langnames ON langnames.langid=reflexes.langid
                 WHERE reflexes.refid IN (
                     SELECT DISTINCT prefid FROM reflex_of WHERE refid IN ({placeholders})
                 )
-                AND lname LIKE ? AND form LIKE ? AND gloss LIKE ?
-                ORDER BY %s
-                LIMIT ? OFFSET ?"""
-            )
-            % ordering_term,
-            refids + [lang_search, form_search, gloss_search, length, start],
+                AND {lang_cond2} AND {form_cond2} AND {gloss_cond2}
+                ORDER BY {ordering_term}
+                LIMIT ? OFFSET ?""",
+            refids + params2 + [length, start],
         )
     else:
         # Original behavior: show all protoforms
         c.execute(
             "SELECT COUNT(*) FROM (SELECT DISTINCT refid FROM reflexes "
-            + "INNER JOIN descendant_of ON reflexes.langid=plangid)"
+            "INNER JOIN descendant_of ON reflexes.langid=plangid)"
         )
         total = int(c.fetchone()[0])
         c.execute(
-            "SELECT COUNT(*) "
-            + "FROM (SELECT DISTINCT refid "
-            + "FROM reflexes "
-            + "INNER JOIN descendant_of ON reflexes.langid=plangid "
-            + "JOIN langnames ON langnames.langid=reflexes.langid "
-            "WHERE langnames.name LIKE ? AND form LIKE ? AND gloss LIKE ?)",
-            (lang_search, form_search, gloss_search),
+            f"""SELECT COUNT(*)
+                FROM (SELECT DISTINCT refid
+                      FROM reflexes
+                      INNER JOIN descendant_of ON reflexes.langid=plangid
+                      JOIN langnames ON langnames.langid=reflexes.langid
+                      WHERE {lang_cond} AND {form_cond} AND {gloss_cond})""",
+            params,
         )
         filtered_total = int(c.fetchone()[0])
         c.execute(
-            (
-                "SELECT DISTINCT refid, plangid, langnames.name AS lname, form, gloss "
-                + "FROM reflexes "
-                + "INNER JOIN descendant_of ON plangid=reflexes.langid "
-                + "JOIN langnames ON langnames.langid=reflexes.langid "
-                + "WHERE lname LIKE ? AND form like ? AND gloss LIKE ? "
-                + "ORDER BY %s "
-                + "LIMIT ? OFFSET ?"
-            )
-            % ordering_term,
-            (lang_search, form_search, gloss_search, length, start),
+            f"""SELECT DISTINCT refid, plangid, langnames.name AS lname, form, gloss
+                FROM reflexes
+                INNER JOIN descendant_of ON plangid=reflexes.langid
+                JOIN langnames ON langnames.langid=reflexes.langid
+                WHERE {lang_cond2} AND {form_cond2} AND {gloss_cond2}
+                ORDER BY {ordering_term}
+                LIMIT ? OFFSET ?""",
+            params2 + [length, start],
         )
     
     protoforms = c.fetchall()
@@ -428,9 +472,9 @@ def alignment():
     
     c = get_db().cursor()
     
-    # Get protoform info
+    # Get protoform info (use ipaform for alignment)
     c.execute(
-        """SELECT reflexes.form, langnames.name
+        """SELECT reflexes.ipaform, langnames.name
            FROM reflexes
            JOIN langnames ON langnames.langid = reflexes.langid
            WHERE reflexes.refid = ?""",
@@ -452,9 +496,9 @@ def alignment():
     )
     is_protoform = c.fetchone()[0] > 0
     
-    # Get all reflexes (daughter forms) for this cognate set
+    # Get all reflexes (daughter forms) for this cognate set (use ipaform for alignment)
     c.execute(
-        """SELECT langnames.name, reflexes.form, reflex_of.morph_index
+        """SELECT langnames.name, reflexes.ipaform, reflex_of.morph_index
            FROM reflex_of
            JOIN reflexes ON reflexes.refid = reflex_of.refid
            JOIN langnames ON langnames.langid = reflexes.langid
@@ -462,7 +506,7 @@ def alignment():
            ORDER BY langnames.name""",
         (prefid,),
     )
-    daughter_forms = [(row[0], row[1], row[2]) for row in c.fetchall()]
+    daughter_forms = [(row[0], row[1] or '', row[2]) for row in c.fetchall()]
     
     if not daughter_forms:
         return jsonify({
@@ -541,10 +585,12 @@ def add_new_reflex():
     sourceid = request.args.get("sourceid", 0, type=int)
     form = request.args.get("form", "", type=str)
     gloss = request.args.get("gloss", "", type=str)
+    # Compute normalized IPA form
+    ipaform = normalize_to_ipa(form)
     c = get_db().cursor()
     c.execute(
-        "INSERT INTO reflexes (langid, sourceid, form, gloss) VALUES (?, ?, ?, ?)",
-        (langid, sourceid, form, gloss),
+        "INSERT INTO reflexes (langid, sourceid, form, gloss, ipaform) VALUES (?, ?, ?, ?, ?)",
+        (langid, sourceid, form, gloss, ipaform),
     )
     get_db().commit()
     return jsonify({"success": "Entry successfully added"})
@@ -604,10 +650,10 @@ def remove_supporting_form():
 @app.route("/findpotcogs")
 def find_pot_cogs():
     langid = request.args.get("langid", 0, type=int)
-    form = request.args.get("form", "", type=str)
+    ipaform = request.args.get("ipaform", "", type=str)
     gloss = request.args.get("gloss", "", type=str)
     alpha = request.args.get("alpha", 0.4, type=float)  # 0=semantic only, 1=phonetic only (optimal: 0.4)
-    find_potential_cognates(langid, form, gloss, alpha)
+    find_potential_cognates(langid, ipaform, gloss, alpha)
     return jsonify({"success": "Reflexes successfully ranked"})
 
 
@@ -647,8 +693,10 @@ def update_reflex():
     refid = request.args.get("refid", 0, type=int)
     form = request.args.get("form", "", type=str)
     gloss = request.args.get("gloss", "", type=str)
+    # Recompute normalized IPA form when form changes
+    ipaform = normalize_to_ipa(form)
     c = get_db().cursor()
-    c.execute("UPDATE reflexes SET form=?, gloss=? WHERE refid=?", (form, gloss, refid))
+    c.execute("UPDATE reflexes SET form=?, gloss=?, ipaform=? WHERE refid=?", (form, gloss, ipaform, refid))
     get_db().commit()
     return jsonify({"success": "Updated successfully!"})
 
@@ -704,10 +752,12 @@ def add_new_set():
     protoform = request.args.get("protoform", "", type=str)
     protogloss = request.args.get("protogloss", "", type=str)
     morph_index = request.args.get("morph_index", 0, type=int)
+    # Compute normalized IPA form for proto-form
+    ipaform = normalize_to_ipa(protoform)
     c = get_db().cursor()
     c.execute(
-        "INSERT INTO reflexes (langid, sourceid, form, gloss) VALUES (?, -2, ?, ?)",
-        (plangid, protoform, protogloss),
+        "INSERT INTO reflexes (langid, sourceid, form, gloss, ipaform) VALUES (?, -2, ?, ?, ?)",
+        (plangid, protoform, protogloss, ipaform),
     )
     get_db().commit()
     c.execute("SELECT LAST_INSERT_ROWID()")

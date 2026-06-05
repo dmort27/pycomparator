@@ -46,8 +46,30 @@ body {
 /* Scrollable wrapper for the table */
 .table-wrapper {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   padding: 8px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* DataTables scroller integration */
+.table-wrapper .dataTables_wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.table-wrapper .dataTables_scroll {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.table-wrapper .dataTables_scrollBody {
+  flex: 1;
   min-height: 0;
 }
 
@@ -78,20 +100,38 @@ table.dataTable tbody tr.selected {
   background-color: #bee3f8 !important;
 }
 
-/* Search input styling in footer */
-table.dataTable tfoot input {
-  width: 100%;
-  padding: 4px 6px;
-  font-size: 10px;
-  border: 1px solid #cbd5e0;
-  border-radius: 3px;
-  font-family: inherit;
+/* Filter row styling in thead */
+table.dataTable thead tr.filter-row th {
+  padding: 4px;
+  background-color: #f7fafc;
+  border-bottom: 2px solid #cbd5e0;
 }
 
-table.dataTable tfoot input:focus {
+table.dataTable thead tr.filter-row input.column-filter {
+  width: 100%;
+  padding: 3px 5px;
+  font-size: 10px;
+  font-family: "Noto Sans", "DejaVu Sans", monospace;
+  border: 1px solid #cbd5e0;
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+
+table.dataTable thead tr.filter-row input.column-filter:focus {
   outline: none;
   border-color: #4299e1;
-  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+  box-shadow: 0 0 0 1px #4299e1;
+}
+
+table.dataTable thead tr.filter-row input.column-filter::placeholder {
+  color: #a0aec0;
+  font-style: italic;
+}
+
+/* Invalid regex indicator */
+table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
+  border-color: #fc8181;
+  background-color: #fff5f5;
 }
 
 /* Button styling */
@@ -528,4 +568,25 @@ table.dataTable tfoot input:focus {
 
 .gloss-label {
   color: #718096;
+}
+
+/* DataTables Scroller loading indicator */
+.dataTables_wrapper .dataTables_processing {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  color: #4a5568;
+  font-size: 11px;
+  padding: 8px 16px;
+}
+
+/* Scroller progress indicator */
+.DTS .dataTables_scrollBody {
+  overflow-y: auto !important;
+}
+
+.DTS .dt-row-loading {
+  color: #718096;
+  font-style: italic;
 }

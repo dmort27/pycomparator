@@ -58,6 +58,7 @@ class ReflexInfo:
     refid: int
     lang_name: str
     form: str
+    ipaform: str
     gloss: str
     
     def to_dict(self) -> dict:
@@ -65,6 +66,7 @@ class ReflexInfo:
             'refid': self.refid,
             'lang_name': self.lang_name,
             'form': self.form,
+            'ipaform': self.ipaform,
             'gloss': self.gloss
         }
 
@@ -294,7 +296,7 @@ def extract_correspondence_sets_for_protolang(
     
     # Get all protoforms for this proto-language
     db_cursor.execute(
-        """SELECT reflexes.refid, reflexes.form, reflexes.gloss
+        """SELECT reflexes.refid, reflexes.ipaform, reflexes.gloss
            FROM reflexes
            WHERE reflexes.langid = ?""",
         (plangid,)
@@ -320,8 +322,9 @@ def extract_correspondence_sets_for_protolang(
     
     for prefid, proto_form, proto_gloss in protoforms:
         # Get daughter forms for this cognate set (with refid for removal)
+        # Use ipaform for alignment, form for display
         db_cursor.execute(
-            """SELECT reflexes.refid, langnames.name, reflexes.form, reflexes.gloss, reflex_of.morph_index
+            """SELECT reflexes.refid, langnames.name, reflexes.form, reflexes.ipaform, reflexes.gloss, reflex_of.morph_index
                FROM reflex_of
                JOIN reflexes ON reflexes.refid = reflex_of.refid
                JOIN langnames ON langnames.langid = reflexes.langid
@@ -330,8 +333,9 @@ def extract_correspondence_sets_for_protolang(
             (prefid,)
         )
         rows = db_cursor.fetchall()
-        daughter_forms = [(row[1], row[2], row[4]) for row in rows]
-        reflexes = [ReflexInfo(refid=row[0], lang_name=row[1], form=row[2], gloss=row[3]) for row in rows]
+        # Use ipaform (row[3]) for alignment, form (row[2]) for display
+        daughter_forms = [(row[1], row[3] or row[2], row[5]) for row in rows]  # Use ipaform, fallback to form
+        reflexes = [ReflexInfo(refid=row[0], lang_name=row[1], form=row[2], ipaform=row[3] or row[2], gloss=row[4]) for row in rows]
         
         if not daughter_forms:
             continue

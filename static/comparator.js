@@ -172,9 +172,9 @@ $(document).ready(function () {
     }
   }
   
-function reloadSupporting() {
-  supporting.ajax.reload();
-}
+  function reloadSupporting() {
+    supporting.ajax.reload();
+  }
 
   //////////////////////////////////////////
   // Edit reflexes
@@ -220,36 +220,37 @@ function reloadSupporting() {
       }
     ]
   });
-}
+  }
 
-function updateReflex() {
-  var refid = $(this).data('refid');
-  var form = $('#editform' + refid).val();
-  var gloss = $('#editgloss' + refid).val();
-  $.ajax({
-    type: 'GET',
-    url: '/updatereflex',
-    data: {
-      refid: refid,
-      form: form,
-      gloss: gloss
-    },
-    dataType: 'json'
-  });
-  reflexes.ajax.reload();
-  console.log('Update ' + refid + ' ' + form + ' ' + gloss);
-  $(this).dialog('close');
-}
+  function updateReflex() {
+    var refid = $(this).data('refid');
+    var form = $('#editform' + refid).val();
+    var gloss = $('#editgloss' + refid).val();
+    $.ajax({
+      type: 'GET',
+      url: '/updatereflex',
+      data: {
+        refid: refid,
+        form: form,
+        gloss: gloss
+      },
+      dataType: 'json'
+    });
+    reflexes.ajax.reload();
+    console.log('Update ' + refid + ' ' + form + ' ' + gloss);
+    $(this).dialog('close');
+  }
 
-//////////////////////////////////////////
-// Find Potential Cognates
-//////////////////////////////////////////
+  //////////////////////////////////////////
+  // Find Potential Cognates
+  //////////////////////////////////////////
 
-function findPotCogs() {
-  var selection = reflexes.rows({
-    selected: true
-  }).data();
-  console.log('Searching for matches: ' + selection[0][3] + ' with gloss ' + selection[0][4]);
+  function findPotCogs() {
+    var selection = reflexes.rows({
+      selected: true
+    }).data();
+    // Data columns: [0]=langid, [1]=refid, [2]=lname, [3]=form, [4]=gloss, [5]=is_supporting, [6]=ipaform
+    console.log('Searching for matches: ' + selection[0][6] + ' (IPA) with gloss ' + selection[0][4]);
     $.ajax({
       refid: selection[0][1],
       url: '/findpotcogs',
@@ -257,353 +258,363 @@ function findPotCogs() {
         langid: selection[0][0],
         refid: selection[0][1],
         lname: selection[0][2],
-        form: selection[0][3],
+        ipaform: selection[0][6],  // Use normalized IPA form for similarity
         gloss: selection[0][4],
       },
       dataType: 'html',
       success: updatePotCogs
     });
-}
-
-function updatePotCogs() {
-  potcogs.ajax.reload();
-}
-
-//////////////////////////////////////////
-// Delete reflexes
-//////////////////////////////////////////
-
-function deleteReflexes() {
-  reflexes
-  .rows({
-    selected: true
-  })
-  .data()
-  .toArray()
-  .forEach(function(value) {
-    var refid = value[0];
-    $.ajax({
-      url: '/deletereflex',
-      data: {
-        refid: refid
-      },
-      success: function() {
-        console.log('Deleted reflex');
-        reflexes.ajax.reload();
-      }
-    });
-  });
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Add cognate sets
-///////////////////////////////////////////////////////////////////////////////
-
-function newSet() {
-  var selection = reflexes.rows({
-    selected: true
-  }).data();
-  var etymon = selection[0];
-  if (typeof etymon !== 'undefined') {
-    console.log('etymon[2]=' + etymon[2])
-    $.ajax({
-      refid: etymon[0],
-      url: '/newsetdialog',
-      data: {
-        langid: etymon[0],
-        refid: etymon[1],
-        lname: etymon[2],
-        form: etymon[3],
-        gloss: etymon[4]
-      },
-      dataType: 'html',
-      success: newSetDialog
-    });
   }
-}
 
-function newSetDialog(data) {
-  var refid = this.refid;
-  $('#dialogs').append(data);
-  $('#newset').data('refid', refid).dialog({
-    title: 'New Correspondence Set',
-    buttons: [{
-      text: 'Add',
-      click: addNewSet
-    },
-    {
-      text: 'Cancel',
-      click: function() {
-        console.log('Cancel');
-        $(this).dialog('close');
-      }
-    }]
-  })
-}
-
-function addNewSet() {
-  var refid = $(this).data('refid');
-  var protoform = $('#protoform').val();
-  var protogloss = $('#protogloss').val();
-  var plangid = $('#plangid').val();
-  var morph_index = $('#morph_index').val();
-  $.ajax({
-    type: 'GET',
-    url: '/addnewset',
-    data: {
-      refid: refid,
-      plangid: plangid,
-      protoform: protoform,
-      protogloss: protogloss,
-      morph_index: morph_index
-    },
-    dataType: 'json'
-  });
-  protoforms.ajax.reload();
-  console.log('Added new set:' + ' protoform: ' + protoform + ' protogloss: ' + protogloss);
-  $(this).dialog('close');
-}
-
-//////////////////////////////////////////
-// Edit protoforms
-//////////////////////////////////////////
-
-function editProtoform() {
-  var selection = protoforms.rows({
-    selected: true
-  }).data();
-  for (var i = 0; i < selection.length; i++) {
-    $.ajax({
-      refid: selection[i][0],
-      url: '/reflexdialog',
-      data: {
-        refid: selection[i][0],
-        lname: selection[i][2],
-        form: selection[i][3],
-        gloss: selection[i][4],
-      },
-      dataType: 'html',
-      success: editProtoformDialog
-    });
+  function updatePotCogs() {
+    potcogs.ajax.reload();
   }
-}
 
-function editProtoformDialog(data) {
-  var refid = this.refid;
-  $('#dialogs').append(data);
-  console.log('#edit' + refid);
-  $('#edit' + refid).data('refid', refid).dialog({
-    title: 'Edit Protoform',
-    buttons: [{
-      text: 'Update',
-      click: updateProtoform
-    },
-    {
-      text: 'Cancel',
-      click: function() {
-        console.log('Cancel');
-        $(this).dialog('close');
-      }
-    }
-  ]
-});
-}
+  //////////////////////////////////////////
+  // Delete reflexes
+  //////////////////////////////////////////
 
-function updateProtoform() {
-  var refid = $(this).data('refid');
-  var form = $('#editform' + refid).val();
-  var gloss = $('#editgloss' + refid).val();
-  $.ajax({
-    type: 'GET',
-    url: '/updatereflex',
-    data: {
-      refid: refid,
-      form: form,
-      gloss: gloss
-    },
-    dataType: 'json'
-  });
-  protoforms.ajax.reload();
-  console.log('Update ' + refid + ' ' + form + ' ' + gloss);
-  $(this).dialog('close');
-}
-
-//////////////////////////////////////////
-// Edit morphs of supporting forms
-//////////////////////////////////////////
-
-function editMorphOfSupportingForm() {
-  console.log('Choosing Morph');
-  var protoSelection = protoforms.rows({
-    selected: true
-  }).data();
-  var supSelection = supporting.rows({
-    selected: true
-  }).data();
-  var prefid = protoSelection[0][0];
-  var plangid = protoSelection[0][1];
-  for (var i = 0; i < supSelection.length; i++) {
-    var refid = supSelection[i][0];
-    var morph_index = supSelection[i][4];
-    console.log('Editing ' + refid + ' reflex of ' + prefid + ' in ' + plangid);
-    $.ajax({
-      url: '/addsupporting',
-      data: {
-        refid: refid,
-        prefid: prefid,
-        plangid: plangid
-      },
-      dataType: 'html',
-      success: popupSupportingDialog,
-      context: {
-        refid: refid,
-        prefid: prefid,
-        plangid: plangid,
-        morph_index: morph_index
-      }
-    });
-  }
-}
-
-function popupSupportingDialog(html) {
-  $('#dialogs').append(html);
-  var dialog = $('#supporting' + this.refid)
-  var morphs = $('#supporting' + this.refid + ' > span');
-  dialog.data('morph_index', this.morph_index);
-  morphs
-  .eq(this.morph_index)
-  .addClass('selected-morph');
-  morphs.each(
-    function(i) {
-      $(this).click(
-        function() {
-          morphs.removeClass('selected-morph');
-          $(this).addClass('selected-morph');
-          dialog.data('morph_index', i);
-          console.log('morph_index in click: ' + dialog.data('morph_index'));
+  function deleteReflexes() {
+    reflexes
+    .rows({
+      selected: true
+    })
+    .data()
+    .toArray()
+    .forEach(function(value) {
+      var refid = value[0];
+      $.ajax({
+        url: '/deletereflex',
+        data: {
+          refid: refid
+        },
+        success: function() {
+          console.log('Deleted reflex');
+          reflexes.ajax.reload();
         }
+      });
+    });
+  }
+
+  ///////////////////////////////////////////////////////////////////////////////
+  // Add cognate sets
+  ///////////////////////////////////////////////////////////////////////////////
+
+  function newSet() {
+    var selection = reflexes.rows({
+      selected: true
+    }).data();
+    var etymon = selection[0];
+    if (typeof etymon !== 'undefined') {
+      console.log('etymon[2]=' + etymon[2])
+      $.ajax({
+        refid: etymon[0],
+        url: '/newsetdialog',
+        data: {
+          langid: etymon[0],
+          refid: etymon[1],
+          lname: etymon[2],
+          form: etymon[3],
+          gloss: etymon[4]
+        },
+        dataType: 'html',
+        success: newSetDialog
+      });
+    }
+  }
+
+  function newSetDialog(data) {
+    var refid = this.refid;
+    $('#dialogs').append(data);
+    $('#newset').data('refid', refid).dialog({
+      title: 'New Correspondence Set',
+      buttons: [{
+        text: 'Add',
+        click: addNewSet
+      },
+      {
+        text: 'Cancel',
+        click: function() {
+          console.log('Cancel');
+          $(this).dialog('close');
+        }
+      }]
+    })
+  }
+
+  function addNewSet() {
+    var refid = $(this).data('refid');
+    var protoform = $('#protoform').val();
+    var protogloss = $('#protogloss').val();
+    var plangid = $('#plangid').val();
+    var morph_index = $('#morph_index').val();
+    $.ajax({
+      type: 'GET',
+      url: '/addnewset',
+      data: {
+        refid: refid,
+        plangid: plangid,
+        protoform: protoform,
+        protogloss: protogloss,
+        morph_index: morph_index
+      },
+      dataType: 'json'
+    });
+    protoforms.ajax.reload();
+    console.log('Added new set:' + ' protoform: ' + protoform + ' protogloss: ' + protogloss);
+    $(this).dialog('close');
+  }
+
+  //////////////////////////////////////////
+  // Edit protoforms
+  //////////////////////////////////////////
+
+  function editProtoform() {
+    var selection = protoforms.rows({
+      selected: true
+    }).data();
+    for (var i = 0; i < selection.length; i++) {
+      $.ajax({
+        refid: selection[i][0],
+        url: '/reflexdialog',
+        data: {
+          refid: selection[i][0],
+          lname: selection[i][2],
+          form: selection[i][3],
+          gloss: selection[i][4],
+        },
+        dataType: 'html',
+        success: editProtoformDialog
+      });
+    }
+  }
+
+  function editProtoformDialog(data) {
+    var refid = this.refid;
+    $('#dialogs').append(data);
+    $('#edit' + refid).data('refid', refid).dialog({
+      title: 'Edit Protoform',
+      buttons: [{
+        text: 'Update',
+        click: function() {
+          var dlgRefid = $(this).data('refid');
+          var form = $('#editform' + dlgRefid).val();
+          var gloss = $('#editgloss' + dlgRefid).val();
+          var dialogToClose = $(this);
+          $.ajax({
+            type: 'GET',
+            url: '/updatereflex',
+            data: {
+              refid: dlgRefid,
+              form: form,
+              gloss: gloss
+            },
+            dataType: 'json',
+            success: function() {
+              protoforms.ajax.reload();
+              supporting.ajax.reload();
+              dialogToClose.dialog('close');
+            },
+            error: function() {
+              dialogToClose.dialog('close');
+            }
+          });
+        }
+      },
+      {
+        text: 'Cancel',
+        click: function() {
+          $(this).dialog('close');
+        }
+      }]
+    });
+  }
+
+  //////////////////////////////////////////
+  // Edit morphs of supporting forms
+  //////////////////////////////////////////
+
+  function editMorphOfSupportingForm() {
+    console.log('Choosing Morph');
+    var protoSelection = protoforms.rows({
+      selected: true
+    }).data();
+    var supSelection = supporting.rows({
+      selected: true
+    }).data();
+    var prefid = protoSelection[0][0];
+    var plangid = protoSelection[0][1];
+    for (var i = 0; i < supSelection.length; i++) {
+      var refid = supSelection[i][0];
+      var morph_index = supSelection[i][4];
+      console.log('Editing ' + refid + ' reflex of ' + prefid + ' in ' + plangid);
+      $.ajax({
+        url: '/addsupporting',
+        data: {
+          refid: refid,
+          prefid: prefid,
+          plangid: plangid
+        },
+        dataType: 'html',
+        success: popupSupportingDialog,
+        context: {
+          refid: refid,
+          prefid: prefid,
+          plangid: plangid,
+          morph_index: morph_index
+        }
+      });
+    }
+  }
+
+  function popupSupportingDialog(html) {
+    $('#dialogs').append(html);
+    var dialog = $('#supporting' + this.refid)
+    var morphs = $('#supporting' + this.refid + ' > span');
+    dialog.data('morph_index', this.morph_index);
+    morphs
+    .eq(this.morph_index)
+    .addClass('selected-morph');
+    morphs.each(
+      function(i) {
+        $(this).click(
+          function() {
+            morphs.removeClass('selected-morph');
+            $(this).addClass('selected-morph');
+            dialog.data('morph_index', i);
+            console.log('morph_index in click: ' + dialog.data('morph_index'));
+          }
         )
       }
-      );
-      dialog
-      .dialog({
-        title: 'Select Morph',
-        buttons: [{
-          text: 'OK',
-          click: updateMorphSelection({
-            refid: this.refid,
-            prefid: this.prefid,
-            plangid: this.plangid,
-            dialog: dialog
-          }),
-        }],
-      });
-    }
-    
-    function updateMorphSelection(params) {
-      return function() {
-        console.log('morph_index in update:' + params.dialog.data('morph_index'));
-        $.ajax({
-          url: '/updatemorph',
-          data: {
-            refid: params.refid,
-            prefid: params.prefid,
-            morph_index: params.dialog.data('morph_index')
-          },
-          success: function() {
-            console.log('Update success. params.refid=' + params.refid);
-            params.dialog.dialog('close');
-            supporting.ajax.reload();
-          }
-        })
-      }
-    }
-    
-    //////////////////////////////////////////
-    // Delete protoforms
-    //////////////////////////////////////////
-    
-    function deleteProtoform() {
-      protoforms
-      .rows({
-        selected: true
-      })
-      .every(function() {
-        var prefid = this.data()[0];
-        console.log('Deleting prefid:' + prefid);
-        $.ajax({
-          url: '/deleteprotoform',
-          data: {
-            prefid: prefid
-          },
-          success: function() {
-            console.log('Deleted protoform');
-            protoforms.ajax.reload();
-            supporting.ajax.reload();
-          }
-        });
-      });
-    }
-    
-    ////////////////////////////////////////
-    // Data tables
-    ////////////////////////////////////////
-    
-    // Store refids filter for protoforms table (empty = show all)
-    var protoformsRefidsFilter = '';
-    
-    var protoforms = $('#protoforms').DataTable({
-      dom: 'Blrtp',
-      select: {
-        style: 'single'
-      },
-      columnDefs: [
-        {
-          targets: [1],
-          visible: false,
-          searchable: false
-        },
-        {
-          targets: [0],
-          visible: false
-        }
-      ],
-      serverSide: true,
-      ajax: {
-        url: "/protoforms",
-        type: "GET",
-        data: function(d) {
-          d.refids = protoformsRefidsFilter;
-        }
-      },
-      buttons: [
-        {
-          text: 'New Set from Reflex',
-          action: newSet
-        },
-        {
-          text: 'Edit',
-          action: editProtoform
-        },
-        {
-          text: 'Delete',
-          action: deleteProtoform
-        },
-        {
-          text: 'Show All',
-          action: function() {
-            protoformsRefidsFilter = '';
-            protoforms.ajax.reload();
-          }
-        }
-      ]
+    );
+    dialog
+    .dialog({
+      title: 'Select Morph',
+      buttons: [{
+        text: 'OK',
+        click: updateMorphSelection({
+          refid: this.refid,
+          prefid: this.prefid,
+          plangid: this.plangid,
+          dialog: dialog
+        }),
+      }],
     });
-    
-    var reflexes = $('#reflexes').DataTable({
-      dom: 'Blrtp',
-      lengthMenu: [10, 20, 30],
+  }
+
+  function updateMorphSelection(params) {
+    return function() {
+      console.log('morph_index in update:' + params.dialog.data('morph_index'));
+      $.ajax({
+        url: '/updatemorph',
+        data: {
+          refid: params.refid,
+          prefid: params.prefid,
+          morph_index: params.dialog.data('morph_index')
+        },
+        success: function() {
+          console.log('Update success. params.refid=' + params.refid);
+          params.dialog.dialog('close');
+          supporting.ajax.reload();
+        }
+      })
+    }
+  }
+
+  //////////////////////////////////////////
+  // Delete protoforms
+  //////////////////////////////////////////
+
+  function deleteProtoform() {
+    protoforms
+    .rows({
+      selected: true
+    })
+    .every(function() {
+      var prefid = this.data()[0];
+      console.log('Deleting prefid:' + prefid);
+      $.ajax({
+        url: '/deleteprotoform',
+        data: {
+          prefid: prefid
+        },
+        success: function() {
+          console.log('Deleted protoform');
+          protoforms.ajax.reload();
+          supporting.ajax.reload();
+        }
+      });
+    });
+  }
+
+  ////////////////////////////////////////
+  // Data tables
+  ////////////////////////////////////////
+
+  // Store refids filter for protoforms table (empty = show all)
+  var protoformsRefidsFilter = '';
+
+  var protoforms = $('#protoforms').DataTable({
+    dom: 'Brtip',
+    select: {
+      style: 'single'
+    },
+    scrollY: '250px',
+    scrollCollapse: true,
+    paging: true,
+    pageLength: 50,
+    deferRender: true,
+    columnDefs: [
+      {
+        targets: [1],
+        visible: false,
+        searchable: false
+      },
+      {
+        targets: [0],
+        visible: false
+      }
+    ],
+    serverSide: true,
+    ajax: {
+      url: "/protoforms",
+      type: "GET",
+      data: function(d) {
+        d.refids = protoformsRefidsFilter;
+      }
+    },
+    buttons: [
+      {
+        text: 'New Set from Reflex',
+        action: newSet
+      },
+      {
+        text: 'Edit',
+        action: editProtoform
+      },
+      {
+        text: 'Delete',
+        action: deleteProtoform
+      },
+      {
+        text: 'Show All',
+        action: function() {
+          protoformsRefidsFilter = '';
+          protoforms.ajax.reload();
+        }
+      }
+    ]
+  });
+
+  var reflexes = $('#reflexes').DataTable({
+      dom: 'Brtip',
       select: true,
       serverSide: true,
+      scrollY: '250px',
+      scrollCollapse: true,
+      paging: true,
+      pageLength: 50,
+      deferRender: true,
       ajax: {
         url: "/reflexes",
         type: "GET"
@@ -646,7 +657,7 @@ function popupSupportingDialog(html) {
         }
       ],
       columnDefs: [{
-        targets: [0, 1, 5],  // Hide langid, refid, and is_supporting columns
+        targets: [0, 1, 5, 6],  // Hide langid, refid, is_supporting, and ipaform columns
         visible: false,
       }],
       createdRow: function(row, data, dataIndex) {
@@ -658,10 +669,14 @@ function popupSupportingDialog(html) {
     });
     
     var potcogs = $('#potcogs').DataTable({
-      dom: 'Blrtp',
-      lengthMenu: [10, 20, 30],
+      dom: 'Brtip',
       select: true,
       serverSide: true,
+      scrollY: '250px',
+      scrollCollapse: true,
+      paging: true,
+      pageLength: 50,
+      deferRender: true,
       ajax: {
         url: "/potcogs",
         type: "GET"
@@ -679,9 +694,14 @@ function popupSupportingDialog(html) {
     });
     
     var supporting = $('#supporting').DataTable({
-      dom: 'Blrtp',
+      dom: 'Brtip',
       select: true,
       serverSide: true,
+      scrollY: '250px',
+      scrollCollapse: true,
+      paging: true,
+      pageLength: 50,
+      deferRender: true,
       columnDefs: [{
         targets: [4],
         visible: false,
@@ -707,50 +727,42 @@ function popupSupportingDialog(html) {
     });
     
     ////////////////////////////////////////
-    // Search bars
+    // Regex filter setup for all tables
     ////////////////////////////////////////
     
-    $('#reflexes tfoot th').each(function() {
-      var title = $(this).text();
-      $(this).html('<input type="text" placeholder="Search ' + title + '" />');
-    });
-
-    $('#potcogs tfoot th').each(function() {
-      var title = $(this).text();
-      $(this).html('<input type="text" placeholder="Search ' + title + '" />');
-    });
-
-    $('#protoforms tfoot th').each(function() {
-      var title = $(this).text();
-      $(this).html('<input type="text" placeholder="Search ' + title + '" />');
-    });
+    // Helper to validate regex
+    function isValidRegex(pattern) {
+      if (!pattern) return true;
+      try {
+        new RegExp(pattern);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
     
-    reflexes.columns().eq(0).each(function(colIdx) {
-      $('input', reflexes.column(colIdx).footer()).on('keyup change', function() {
-        reflexes
-        .column(colIdx)
-        .search(this.value)
-        .draw();
+    // Setup filter inputs for a table - uses regex search
+    function setupColumnFilters(table, tableId) {
+      $('#' + tableId + ' thead tr.filter-row input.column-filter').on('keyup change', function() {
+        var input = $(this);
+        var colIdx = parseInt(input.data('column'));
+        var value = input.val();
+        
+        // Validate regex
+        if (isValidRegex(value)) {
+          input.removeClass('invalid-regex');
+          // Use regex search (third param = true for regex, fourth = false for smart search)
+          table.column(colIdx).search(value, true, false).draw();
+        } else {
+          input.addClass('invalid-regex');
+        }
       });
-    });
+    }
     
-    potcogs.columns().eq(0).each(function(colIdx) {
-      $('input', potcogs.column(colIdx).footer()).on('keyup change', function() {
-        potcogs
-        .column(colIdx)
-        .search(this.value)
-        .draw();
-      });
-    });
-
-    protoforms.columns().eq(0).each(function(colIdx) {
-      $('input', protoforms.column(colIdx).footer()).on('keyup change', function() {
-        protoforms
-        .column(colIdx)
-        .search(this.value)
-        .draw();
-      });
-    });
+    setupColumnFilters(reflexes, 'reflexes');
+    setupColumnFilters(potcogs, 'potcogs');
+    setupColumnFilters(protoforms, 'protoforms');
+    setupColumnFilters(supporting, 'supporting');
     
     protoforms.on('select', function(e, dt, type, indexes) {
       var prefid = protoforms.rows(indexes).data().toArray()[0][0];
