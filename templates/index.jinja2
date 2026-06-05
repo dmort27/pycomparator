@@ -7,6 +7,9 @@
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='comparator.css') }}"/>
 </head>
 <body>
+  <div class="top-toolbar">
+    <button id="correspondence-sets-btn" class="toolbar-btn">Correspondence Sets</button>
+  </div>
   <div class="tables-grid">
     <div class="table-container">
       <h3>Reflexes (Lexicon)</h3>
@@ -19,6 +22,7 @@
               <th>Language</th>
               <th>Form</th>
               <th>Gloss</th>
+              <th>InSet</th>
             </tr>
           </thead>
           <tfoot>
@@ -28,6 +32,7 @@
               <th>Language</th>
               <th>Form</th>
               <th>Gloss</th>
+              <th>InSet</th>
             </tr>
           </tfoot>
         </table>

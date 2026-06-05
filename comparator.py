@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 from flask import Flask, g, jsonify, render_template, request
 
+from alignment import CognateAligner
 from embeddings import CognateEmbedder, build_embedder_from_db
 
 app = Flask(__name__)
@@ -138,7 +139,8 @@ def root():
 @app.route("/reflexes", methods=["GET", "POST"])
 def reflexes():
     # All data should have the following shape
-    cols = ["reflexes.langid", "refid", "lname", "form", "gloss"]
+    # Added is_supporting column (1 if reflex is in a cognate set, 0 otherwise)
+    cols = ["reflexes.langid", "refid", "lname", "form", "gloss", "is_supporting"]
     # limit parameters
     start = request.args.get("start", 0, type=int)
     length = request.args.get("length", 0, type=int)
@@ -174,12 +176,14 @@ def reflexes():
     c.execute(
         (
             """SELECT reflexes.langid,
-                         refid,
+                         reflexes.refid,
                          langnames.name AS lname,
                          form,
-                         gloss
+                         gloss,
+                         CASE WHEN reflex_of.refid IS NOT NULL THEN 1 ELSE 0 END AS is_supporting
                   FROM reflexes
                   JOIN langnames ON langnames.langid=reflexes.langid
+                  LEFT JOIN (SELECT DISTINCT refid FROM reflex_of) AS reflex_of ON reflex_of.refid=reflexes.refid
                   WHERE lname LIKE ? AND form LIKE ? AND gloss LIKE ?
                   ORDER BY %s
                   LIMIT ? OFFSET ?"""
@@ -276,6 +280,8 @@ def protoforms():
     start = request.args.get("start", 0, type=int)
     length = request.args.get("length", 0, type=int)
     draw = request.args.get("draw", 0, type=int)
+    # Filter by refids (comma-separated list of reflex ids to find their protoforms)
+    refids_param = request.args.get("refids", "", type=str)
     # Search strings for language, form, and gloss
     lang_search = "%{}%".format(
         request.args.get("columns[2][search][value]", "", type=str)
@@ -293,34 +299,91 @@ def protoforms():
         direction = "asc"
     ordering_term = "{} {}".format(order, direction)
     c = get_db().cursor()
-    c.execute(
-        "SELECT COUNT(*) FROM (SELECT DISTINCT refid FROM reflexes "
-        + "INNER JOIN descendant_of ON reflexes.langid=plangid)"
-    )
-    total = int(c.fetchone()[0])
-    c.execute(
-        "SELECT COUNT(*) "
-        + "FROM (SELECT DISTINCT refid "
-        + "FROM reflexes "
-        + "INNER JOIN descendant_of ON reflexes.langid=plangid "
-        + "JOIN langnames ON langnames.langid=reflexes.langid "
-        "WHERE langnames.name LIKE ? AND form LIKE ? AND gloss LIKE ?)",
-        (lang_search, form_search, gloss_search),
-    )
-    filtered_total = int(c.fetchone()[0])
-    c.execute(
-        (
-            "SELECT DISTINCT refid, plangid, langnames.name AS lname, form, gloss "
-            + "FROM reflexes "
-            + "INNER JOIN descendant_of ON plangid=reflexes.langid "
-            + "JOIN langnames ON langnames.langid=reflexes.langid "
-            + "WHERE lname LIKE ? AND form like ? AND gloss LIKE ? "
-            + "ORDER BY %s "
-            + "LIMIT ? OFFSET ?"
+    
+    # If filtering by refids, find protoforms associated with those reflexes
+    if refids_param:
+        refids = [int(r) for r in refids_param.split(",") if r.strip().isdigit()]
+        if not refids:
+            return jsonify({"draw": draw, "recordsTotal": 0, "recordsFiltered": 0, "data": []})
+        
+        placeholders = ",".join("?" * len(refids))
+        
+        # Get protoforms (prefids) associated with the selected reflexes
+        c.execute(
+            f"""SELECT COUNT(*) FROM (
+                SELECT DISTINCT reflexes.refid
+                FROM reflexes
+                INNER JOIN descendant_of ON reflexes.langid=plangid
+                WHERE reflexes.refid IN (
+                    SELECT DISTINCT prefid FROM reflex_of WHERE refid IN ({placeholders})
+                )
+            )""",
+            refids,
         )
-        % ordering_term,
-        (lang_search, form_search, gloss_search, length, start),
-    )
+        total = int(c.fetchone()[0])
+        
+        c.execute(
+            f"""SELECT COUNT(*) FROM (
+                SELECT DISTINCT reflexes.refid
+                FROM reflexes
+                INNER JOIN descendant_of ON reflexes.langid=plangid
+                JOIN langnames ON langnames.langid=reflexes.langid
+                WHERE reflexes.refid IN (
+                    SELECT DISTINCT prefid FROM reflex_of WHERE refid IN ({placeholders})
+                )
+                AND langnames.name LIKE ? AND form LIKE ? AND gloss LIKE ?
+            )""",
+            refids + [lang_search, form_search, gloss_search],
+        )
+        filtered_total = int(c.fetchone()[0])
+        
+        c.execute(
+            (
+                f"""SELECT DISTINCT reflexes.refid, plangid, langnames.name AS lname, form, gloss
+                FROM reflexes
+                INNER JOIN descendant_of ON plangid=reflexes.langid
+                JOIN langnames ON langnames.langid=reflexes.langid
+                WHERE reflexes.refid IN (
+                    SELECT DISTINCT prefid FROM reflex_of WHERE refid IN ({placeholders})
+                )
+                AND lname LIKE ? AND form LIKE ? AND gloss LIKE ?
+                ORDER BY %s
+                LIMIT ? OFFSET ?"""
+            )
+            % ordering_term,
+            refids + [lang_search, form_search, gloss_search, length, start],
+        )
+    else:
+        # Original behavior: show all protoforms
+        c.execute(
+            "SELECT COUNT(*) FROM (SELECT DISTINCT refid FROM reflexes "
+            + "INNER JOIN descendant_of ON reflexes.langid=plangid)"
+        )
+        total = int(c.fetchone()[0])
+        c.execute(
+            "SELECT COUNT(*) "
+            + "FROM (SELECT DISTINCT refid "
+            + "FROM reflexes "
+            + "INNER JOIN descendant_of ON reflexes.langid=plangid "
+            + "JOIN langnames ON langnames.langid=reflexes.langid "
+            "WHERE langnames.name LIKE ? AND form LIKE ? AND gloss LIKE ?)",
+            (lang_search, form_search, gloss_search),
+        )
+        filtered_total = int(c.fetchone()[0])
+        c.execute(
+            (
+                "SELECT DISTINCT refid, plangid, langnames.name AS lname, form, gloss "
+                + "FROM reflexes "
+                + "INNER JOIN descendant_of ON plangid=reflexes.langid "
+                + "JOIN langnames ON langnames.langid=reflexes.langid "
+                + "WHERE lname LIKE ? AND form like ? AND gloss LIKE ? "
+                + "ORDER BY %s "
+                + "LIMIT ? OFFSET ?"
+            )
+            % ordering_term,
+            (lang_search, form_search, gloss_search, length, start),
+        )
+    
     protoforms = c.fetchall()
     data = {
         "draw": draw,
@@ -329,6 +392,101 @@ def protoforms():
         "data": protoforms,
     }
     return jsonify(data)
+
+
+# Singleton aligner instance
+_cognate_aligner = None
+
+
+def get_aligner() -> CognateAligner:
+    """Get or create the singleton CognateAligner."""
+    global _cognate_aligner
+    if _cognate_aligner is None:
+        _cognate_aligner = CognateAligner()
+    return _cognate_aligner
+
+
+@app.route("/alignment")
+def alignment():
+    """
+    Compute phoneme alignment for a cognate set.
+    
+    Query parameters:
+        prefid: ID of the protoform (required)
+        
+    Returns:
+        JSON with alignment data including:
+        - prefid: protoform ID
+        - proto_lang: name of proto-language (if available)
+        - proto_form: reconstructed form (if available)
+        - alignment: list of dicts mapping language -> phoneme
+        - languages: ordered list of language names
+    """
+    prefid = request.args.get("prefid", type=int)
+    if prefid is None:
+        return jsonify({"error": "prefid parameter is required"}), 400
+    
+    c = get_db().cursor()
+    
+    # Get protoform info
+    c.execute(
+        """SELECT reflexes.form, langnames.name
+           FROM reflexes
+           JOIN langnames ON langnames.langid = reflexes.langid
+           WHERE reflexes.refid = ?""",
+        (prefid,),
+    )
+    proto_row = c.fetchone()
+    
+    if proto_row is None:
+        return jsonify({"error": f"Protoform with prefid={prefid} not found"}), 404
+    
+    proto_form, proto_lang = proto_row
+    
+    # Check if this is actually a protoform (in descendant_of table)
+    c.execute(
+        """SELECT COUNT(*) FROM descendant_of
+           JOIN reflexes ON reflexes.langid = descendant_of.plangid
+           WHERE reflexes.refid = ?""",
+        (prefid,),
+    )
+    is_protoform = c.fetchone()[0] > 0
+    
+    # Get all reflexes (daughter forms) for this cognate set
+    c.execute(
+        """SELECT langnames.name, reflexes.form, reflex_of.morph_index
+           FROM reflex_of
+           JOIN reflexes ON reflexes.refid = reflex_of.refid
+           JOIN langnames ON langnames.langid = reflexes.langid
+           WHERE reflex_of.prefid = ?
+           ORDER BY langnames.name""",
+        (prefid,),
+    )
+    daughter_forms = [(row[0], row[1], row[2]) for row in c.fetchall()]
+    
+    if not daughter_forms:
+        return jsonify({
+            "error": f"No reflexes found for prefid={prefid}",
+            "prefid": prefid,
+            "proto_lang": proto_lang if is_protoform else None,
+            "proto_form": proto_form if is_protoform else None,
+        }), 404
+    
+    # Compute alignment
+    aligner = get_aligner()
+    
+    if is_protoform:
+        protoform_tuple = (proto_lang, proto_form)
+    else:
+        protoform_tuple = None
+    
+    result = aligner.align_from_data(
+        forms=daughter_forms,
+        protoform=protoform_tuple,
+        prefid=prefid
+    )
+    
+    return jsonify(result.to_dict())
 
 
 @app.route("/supporting")
@@ -600,3 +758,68 @@ def delete_protoform():
     c.execute("DELETE FROM reflex_of WHERE prefid=?", (prefid,))
     get_db().commit()
     return jsonify({"success": "Deleted successfully"})
+
+
+##############################################################################
+# Correspondence Sets
+##############################################################################
+
+
+@app.route("/protolanguages")
+def get_protolanguages():
+    """Get list of proto-languages for dropdown."""
+    c = get_db().cursor()
+    c.execute(
+        """SELECT DISTINCT langnames.langid, langnames.name
+           FROM langnames
+           JOIN descendant_of ON langnames.langid = descendant_of.plangid
+           ORDER BY langnames.name"""
+    )
+    protolanguages = [{"langid": row[0], "name": row[1]} for row in c.fetchall()]
+    return jsonify(protolanguages)
+
+
+@app.route("/correspondence_sets")
+def correspondence_sets():
+    """
+    Get correspondence sets for a proto-language.
+    
+    Query parameters:
+        plangid: Proto-language ID (required)
+        
+    Returns:
+        JSON with correspondence sets data
+    """
+    from correspondence import extract_correspondence_sets_for_protolang
+    
+    plangid = request.args.get("plangid", type=int)
+    if plangid is None:
+        return jsonify({"error": "plangid parameter is required"}), 400
+    
+    c = get_db().cursor()
+    
+    # Get proto-language name
+    c.execute("SELECT name FROM langnames WHERE langid = ?", (plangid,))
+    row = c.fetchone()
+    if row is None:
+        return jsonify({"error": f"Proto-language with ID {plangid} not found"}), 404
+    
+    proto_lang_name = row[0]
+    
+    # Extract correspondence sets
+    corr_sets, languages = extract_correspondence_sets_for_protolang(
+        c, plangid, proto_lang_name
+    )
+    
+    return jsonify({
+        "proto_language": proto_lang_name,
+        "plangid": plangid,
+        "languages": languages,
+        "correspondence_sets": [cs.to_dict(languages) for cs in corr_sets]
+    })
+
+
+@app.route("/correspondence_sets_dialog")
+def correspondence_sets_dialog():
+    """Render the correspondence sets dialog template."""
+    return render_template("correspondence_sets_dialog.jinja2")

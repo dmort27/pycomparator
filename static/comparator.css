@@ -18,7 +18,7 @@ body {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
   gap: 12px;
-  height: calc(100vh - 16px);
+  height: calc(100vh - 70px);
   width: 100%;
 }
 
@@ -174,4 +174,358 @@ table.dataTable tfoot input:focus {
   padding: 4px 8px;
   border: 1px solid #cbd5e0;
   border-radius: 3px;
+}
+
+/* Top toolbar */
+.top-toolbar {
+  padding: 8px;
+  background-color: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 8px;
+}
+
+.toolbar-btn {
+  font-size: 11px;
+  padding: 6px 14px;
+  border: 1px solid #4a5568;
+  border-radius: 4px;
+  background: linear-gradient(to bottom, #4a5568, #2d3748);
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.toolbar-btn:hover {
+  background: linear-gradient(to bottom, #2d3748, #1a202c);
+}
+
+/* Correspondence Sets Dialog */
+#correspondence-sets-dialog {
+  font-size: 11px;
+}
+
+.corr-header {
+  padding: 10px 0;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.corr-header label {
+  font-weight: 600;
+}
+
+.corr-header select {
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px solid #cbd5e0;
+  border-radius: 3px;
+  min-width: 180px;
+}
+
+.corr-btn {
+  font-size: 10px;
+  padding: 4px 10px;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  background: linear-gradient(to bottom, #fff, #edf2f7);
+  color: #4a5568;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.corr-btn:hover {
+  background: linear-gradient(to bottom, #edf2f7, #e2e8f0);
+}
+
+#corr-sets-container {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.corr-placeholder {
+  color: #718096;
+  font-style: italic;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Correspondence set table */
+.corr-set-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.corr-set-table thead th {
+  padding: 6px 8px;
+  background-color: #edf2f7;
+  border-bottom: 1px solid #cbd5e0;
+  text-align: center;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+/* Sortable headers */
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sortable-header:hover {
+  background-color: #e2e8f0;
+}
+
+.sort-indicator {
+  color: #4299e1;
+  font-size: 9px;
+}
+
+/* Filter row */
+.corr-filter-row td {
+  padding: 4px;
+  background-color: #f7fafc;
+  border-bottom: 2px solid #cbd5e0;
+}
+
+.corr-filter-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 5px;
+  font-size: 10px;
+  font-family: "Noto Sans", "DejaVu Sans", monospace;
+  border: 1px solid #cbd5e0;
+  border-radius: 3px;
+}
+
+.corr-filter-input:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 1px #4299e1;
+}
+
+.corr-filter-input::placeholder {
+  color: #a0aec0;
+  font-style: italic;
+}
+
+/* Correspondence set row (expandable) */
+.corr-set-row {
+  cursor: pointer;
+  background-color: #f7fafc;
+  transition: background-color 0.15s;
+}
+
+.corr-set-row:hover {
+  background-color: #edf2f7;
+}
+
+.corr-set-row td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.corr-set-row .expand-icon {
+  width: 20px;
+  text-align: center;
+  color: #4a5568;
+  font-weight: bold;
+}
+
+.corr-set-row .pattern-cell {
+  font-family: "Noto Sans", "DejaVu Sans", "Charis SIL", monospace;
+}
+
+.corr-set-row .count-cell {
+  text-align: right;
+  color: #718096;
+  font-size: 10px;
+}
+
+/* Expanded cognate sets container */
+.cognate-sets-container {
+  display: none;
+  background-color: #fff;
+  border-left: 3px solid #4299e1;
+  margin-left: 20px;
+}
+
+.cognate-sets-container.expanded {
+  display: block;
+}
+
+/* Individual cognate set */
+.cognate-set {
+  padding: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.cognate-set:last-child {
+  border-bottom: none;
+}
+
+.cognate-set-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  padding: 4px;
+  background-color: #ebf8ff;
+  border-radius: 3px;
+}
+
+.cognate-set-header .protoform {
+  font-weight: bold;
+  font-family: "Noto Sans", "DejaVu Sans", "Charis SIL", monospace;
+}
+
+.cognate-set-header .gloss {
+  color: #4a5568;
+  font-style: italic;
+}
+
+.cognate-set-header input {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+}
+
+.cognate-set-header input:hover {
+  border-color: #cbd5e0;
+}
+
+.cognate-set-header input:focus {
+  border-color: #4299e1;
+  outline: none;
+  background: #fff;
+}
+
+/* Alignment table */
+.alignment-table {
+  border-collapse: collapse;
+  font-family: "Noto Sans", "DejaVu Sans", "Charis SIL", monospace;
+  font-size: 11px;
+  width: auto;
+}
+
+.alignment-table th {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 4px;
+  background-color: #edf2f7;
+  color: #4a5568;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.alignment-table td {
+  padding: 3px 6px;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.alignment-table .lang-cell {
+  font-size: 9px;
+  font-weight: 600;
+  text-align: left;
+  background-color: #f7fafc;
+  font-family: "Noto Sans", "Segoe UI", sans-serif;
+}
+
+.alignment-table .highlight-col {
+  background-color: #bee3f8 !important;
+}
+
+.alignment-table .gap-cell {
+  color: #a0aec0;
+}
+
+/* Remove button */
+.remove-cognate-btn {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: #fc8181;
+  color: #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 18px;
+  text-align: center;
+  padding: 0;
+  margin-left: auto;
+}
+
+.remove-cognate-btn:hover {
+  background: #f56565;
+}
+
+/* Pattern display */
+.pattern-display {
+  display: flex;
+  gap: 2px;
+}
+
+.pattern-segment {
+  display: inline-block;
+  min-width: 16px;
+  text-align: center;
+  padding: 1px 3px;
+  background-color: #edf2f7;
+  border-radius: 2px;
+  font-family: "Noto Sans", "DejaVu Sans", "Charis SIL", monospace;
+}
+
+.pattern-segment.gap {
+  background-color: transparent;
+  color: #a0aec0;
+}
+
+/* Correspondence table header */
+.corr-set-table thead th {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 4px 6px;
+  background-color: #4a5568;
+  color: #fff;
+  text-align: center;
+  border: 1px solid #2d3748;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.corr-set-table thead th:first-child {
+  width: 24px;
+}
+
+.corr-set-table thead th:last-child {
+  width: 50px;
+}
+
+/* Hide the cognate sets row by default */
+.cognate-sets-row {
+  display: none;
+}
+
+.cognate-sets-row.expanded {
+  display: table-row;
+}
+
+/* Protoform label styling */
+.protoform-label {
+  font-weight: bold;
+  color: #4a5568;
+}
+
+.gloss-label {
+  color: #718096;
 }
