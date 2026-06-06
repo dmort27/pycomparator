@@ -103,10 +103,9 @@ CHAR_MAPPINGS = [
 ]
 
 # Retroflex mappings: consonant + underdot → retroflex
-# The underdot can be combining dot below (U+0323) or combining diaeresis below (U+0324)
-UNDERDOT = '\u0323'           # ̣ COMBINING DOT BELOW
-UNDERDIAERESIS = '\u0324'     # ̤ COMBINING DIAERESIS BELOW
-RETROFLEX_MARKERS = {UNDERDOT, UNDERDIAERESIS}
+# Only combining dot below (U+0323) indicates retroflex
+# Note: combining diaeresis below (U+0324) indicates breathy voice and should be preserved
+UNDERDOT = '\u0323'  # ̣ COMBINING DOT BELOW
 RETROFLEX_MAPPINGS = {
     't': 'ʈ',
     'd': 'ɖ',
@@ -143,10 +142,11 @@ def remove_superscript_numbers(text: str) -> str:
 
 
 def convert_retroflex(text: str) -> str:
-    """Convert consonants with underdot/underdiaeresis to retroflex equivalents.
+    """Convert consonants with underdot to retroflex equivalents.
     
     E.g., ṭ → ʈ, ḍ → ɖ, ṣ → ʂ, etc.
-    Handles both combining dot below (U+0323) and combining diaeresis below (U+0324).
+    Only handles combining dot below (U+0323).
+    Note: combining diaeresis below (U+0324) indicates breathy voice and is preserved.
     """
     # Decompose to NFD to separate base character from combining marks
     text = unicodedata.normalize('NFD', text)
@@ -154,12 +154,12 @@ def convert_retroflex(text: str) -> str:
     i = 0
     while i < len(text):
         char = text[i]
-        # Check if next character is a retroflex marker and current char has a retroflex mapping
+        # Check if next character is underdot and current char has a retroflex mapping
         if (i + 1 < len(text) and 
-            text[i + 1] in RETROFLEX_MARKERS and 
+            text[i + 1] == UNDERDOT and 
             char in RETROFLEX_MAPPINGS):
             result.append(RETROFLEX_MAPPINGS[char])
-            i += 2  # Skip both the consonant and the marker
+            i += 2  # Skip both the consonant and the underdot
         else:
             result.append(char)
             i += 1
@@ -384,9 +384,9 @@ if __name__ == '__main__':
         's\u0323u',          # ṣu: s + underdot → ʂu
         'n\u0323a',          # ṇa: n + underdot → ɳa
         'l\u0323i',          # ḷi: l + underdot → ɭi
-        # Retroflex tests (using combining diaeresis below U+0324)
-        't\u0324a',          # t̤a: t + diaeresis below → ʈa
-        'd\u0324i',          # d̤i: d + diaeresis below → ɖi
+        # Breathy voice tests (diaeresis below U+0324 should be PRESERVED)
+        't\u0324a',          # t̤a: breathy t, should stay as t̤a
+        'd\u0324i',          # d̤i: breathy d, should stay as d̤i
         # Superscript number tests
         'ma¹',               # Superscript 1
         'pa²³',              # Superscript 2, 3
