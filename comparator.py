@@ -177,8 +177,8 @@ def root():
 @app.route("/reflexes", methods=["GET", "POST"])
 def reflexes():
     # All data should have the following shape
-    # Added is_supporting and ipaform columns
-    cols = ["reflexes.langid", "refid", "lname", "form", "gloss", "is_supporting", "ipaform"]
+    # Column 3 (Form) shows ipaform, column 6 (hidden) stores original form
+    cols = ["reflexes.langid", "refid", "lname", "ipaform", "gloss", "is_supporting", "form"]
     # limit parameters
     start = request.args.get("start", 0, type=int)
     length = request.args.get("length", 0, type=int)
@@ -197,9 +197,10 @@ def reflexes():
     ordering_term = f"{order} {direction}"
     
     # Build search conditions with regex support
+    # Search the ipaform column when filtering by "Form"
     params = []
     lang_cond = build_search_condition("langnames.name", lang_search, params)
-    form_cond = build_search_condition("form", form_search, params)
+    form_cond = build_search_condition("ipaform", form_search, params)
     gloss_cond = build_search_condition("gloss", gloss_search, params)
     where_clause = f"WHERE {lang_cond} AND {form_cond} AND {gloss_cond}"
     
@@ -218,7 +219,7 @@ def reflexes():
     # Build params again for the main query (need lname alias)
     params2 = []
     lang_cond2 = build_search_condition("lname", lang_search, params2)
-    form_cond2 = build_search_condition("form", form_search, params2)
+    form_cond2 = build_search_condition("ipaform", form_search, params2)
     gloss_cond2 = build_search_condition("gloss", gloss_search, params2)
     where_clause2 = f"WHERE {lang_cond2} AND {form_cond2} AND {gloss_cond2}"
     
@@ -226,10 +227,10 @@ def reflexes():
         f"""SELECT reflexes.langid,
                    reflexes.refid,
                    langnames.name AS lname,
-                   form,
+                   ipaform,
                    gloss,
                    CASE WHEN reflex_of.refid IS NOT NULL THEN 1 ELSE 0 END AS is_supporting,
-                   ipaform
+                   form
             FROM reflexes
             JOIN langnames ON langnames.langid=reflexes.langid
             LEFT JOIN (SELECT DISTINCT refid FROM reflex_of) AS reflex_of ON reflex_of.refid=reflexes.refid

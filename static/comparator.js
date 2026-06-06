@@ -249,8 +249,8 @@ $(document).ready(function () {
     var selection = reflexes.rows({
       selected: true
     }).data();
-    // Data columns: [0]=langid, [1]=refid, [2]=lname, [3]=form, [4]=gloss, [5]=is_supporting, [6]=ipaform
-    console.log('Searching for matches: ' + selection[0][6] + ' (IPA) with gloss ' + selection[0][4]);
+    // Data columns: [0]=langid, [1]=refid, [2]=lname, [3]=ipaform, [4]=gloss, [5]=is_supporting, [6]=form
+    console.log('Searching for matches: ' + selection[0][3] + ' (IPA) with gloss ' + selection[0][4]);
     $.ajax({
       refid: selection[0][1],
       url: '/findpotcogs',
@@ -258,7 +258,7 @@ $(document).ready(function () {
         langid: selection[0][0],
         refid: selection[0][1],
         lname: selection[0][2],
-        ipaform: selection[0][6],  // Use normalized IPA form for similarity
+        ipaform: selection[0][3],  // Use normalized IPA form for similarity
         gloss: selection[0][4],
       },
       dataType: 'html',

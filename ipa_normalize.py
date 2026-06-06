@@ -3,11 +3,40 @@
 import re
 import unicodedata
 
+import panphon
+
+# Initialize panphon feature table for vowel/consonant classification
+_ft = panphon.FeatureTable()
+
+# Cache for vowel/consonant lookups
+_syl_cache: dict[str, int | None] = {}
+
+
+def _get_syl_feature(char: str) -> int | None:
+    """Get the syllabic feature for a character using panphon.
+    
+    Returns:
+        1 if vowel (syllabic), -1 if consonant, None if unknown
+    """
+    if char in _syl_cache:
+        return _syl_cache[char]
+    
+    fts = _ft.word_fts(char)
+    if fts:
+        syl = fts[0].get('syl', None)
+        _syl_cache[char] = syl
+        return syl
+    _syl_cache[char] = None
+    return None
+
+
+def is_vowel(char: str) -> bool:
+    """Check if a character is a vowel based on panphon syllabic feature."""
+    return _get_syl_feature(char) == 1
+
+
 # Ligature tie character
 TIE = '\u0361'  # ͡
-
-# Vowels for detecting consonant context
-VOWELS = set('aeiouɐɑɒæɔəɛɜɤɪɨʉɯʊʌœøɵɶʏ')
 
 # Tone diacritics (combining characters)
 TONE_MARKS = [
@@ -41,11 +70,21 @@ AFFRICATES = [
     ('dɮ', 'd' + TIE + 'ɮ'),
 ]
 
+# Digraph mappings (applied before affricate ties)
+# Order matters: longer sequences first
+DIGRAPHS = [
+    ('ng', 'ŋ'),
+    ('ny', 'ɲ'),
+]
+
+# Single character mappings
+CHAR_MAPPINGS = [
+    ('ñ', 'ɲ'),   # Precomposed ñ (U+00F1)
+    ('ñ', 'ɲ'),   # n + combining tilde (U+006E U+0303)
+]
+
 # Long vowel marker
 LONG = 'ː'
-
-# Double vowels to convert to long vowels
-DOUBLE_VOWELS = [(v + v, v + LONG) for v in VOWELS]
 
 
 def remove_tone_marks(text: str) -> str:
@@ -60,6 +99,20 @@ def remove_tone_marks(text: str) -> str:
     return unicodedata.normalize('NFC', ''.join(result))
 
 
+def apply_char_mappings(text: str) -> str:
+    """Apply single character mappings (e.g., ñ → ɲ)."""
+    for source, target in CHAR_MAPPINGS:
+        text = text.replace(source, target)
+    return text
+
+
+def convert_digraphs(text: str) -> str:
+    """Convert common digraphs to IPA (e.g., ng → ŋ, ny → ɲ)."""
+    for digraph, ipa in DIGRAPHS:
+        text = text.replace(digraph, ipa)
+    return text
+
+
 def add_affricate_ties(text: str) -> str:
     """Add ligature ties to affricates (e.g., ts → t͡s)."""
     # Skip if already has tie
@@ -71,23 +124,43 @@ def add_affricate_ties(text: str) -> str:
 
 
 def convert_double_vowels(text: str) -> str:
-    """Convert double vowels to vowels with length marks (e.g., aa → aː)."""
-    for double, long in DOUBLE_VOWELS:
-        text = text.replace(double, long)
-    return text
+    """Convert double vowels to vowels with length marks (e.g., aa → aː).
+    
+    Uses panphon to identify vowels based on the syllabic feature.
+    """
+    result = []
+    i = 0
+    chars = list(text)
+    while i < len(chars):
+        char = chars[i]
+        # Check if current and next char are identical vowels
+        if i + 1 < len(chars) and char == chars[i + 1] and is_vowel(char):
+            result.append(char)
+            result.append(LONG)
+            i += 2  # Skip both vowels
+        else:
+            result.append(char)
+            i += 1
+    return ''.join(result)
 
 
 def is_consonant(char: str) -> bool:
-    """Check if a character is a consonant (not a vowel, space, or punctuation)."""
-    if not char or char in VOWELS:
+    """Check if a character is a consonant based on panphon syllabic feature.
+    
+    A consonant is a letter-like character that is not a vowel (syl != 1).
+    """
+    if not char:
         return False
     # Check if it's a letter-like character
-    if unicodedata.category(char).startswith('L'):
-        return True
-    # IPA modifiers and diacritics
-    if unicodedata.category(char).startswith('M'):
+    if not unicodedata.category(char).startswith('L'):
         return False
-    return False
+    # Use panphon: consonants have syl=-1, vowels have syl=1
+    syl = _get_syl_feature(char)
+    # If panphon knows it, use that; vowels have syl=1
+    if syl is not None:
+        return syl != 1
+    # Unknown to panphon but is a letter - assume consonant
+    return True
 
 
 def convert_y_to_j(text: str) -> str:
@@ -137,15 +210,19 @@ def normalize_to_ipa(form: str) -> str:
     
     Applies the following transformations:
     1. Remove tone marks
-    2. Add ligature ties to affricates
-    3. Convert double vowels to long vowels
-    4. Convert y to j when appropriate
+    2. Apply character mappings (e.g., ñ → ɲ)
+    3. Convert digraphs (e.g., ng → ŋ, ny → ɲ)
+    4. Add ligature ties to affricates
+    5. Convert double vowels to long vowels
+    6. Convert y to j when appropriate
     """
     if not form:
         return form
     
     # Apply transformations in order
     result = remove_tone_marks(form)
+    result = apply_char_mappings(result)
+    result = convert_digraphs(result)
     result = add_affricate_ties(result)
     result = convert_double_vowels(result)
     result = convert_y_to_j(result)
@@ -167,6 +244,13 @@ if __name__ == '__main__':
         'dʒu-mi',
         'y-ʔi-ʃî',
         'si-ŋi-tsy',
+        'bang',       # Test ng → ŋ
+        'singing',    # Test multiple ng → ŋ
+        'finger',     # Test ng in middle
+        'anya',       # Test ny → ɲ
+        'kenyan',     # Test ny → ɲ
+        'ñoño',       # Test ñ → ɲ (precomposed)
+        'cañon',      # Test ñ → ɲ
     ]
     
     print("IPA Normalization Tests:")
