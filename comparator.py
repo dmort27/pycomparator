@@ -54,14 +54,21 @@ def get_db():
 
 
 def build_search_condition(column: str, search_value: str, params: list) -> str:
-    """Build search condition - uses REGEXP if it looks like regex, else LIKE."""
+    """Build search condition - uses REGEXP if explicitly regex-like, else LIKE."""
     if not search_value:
         params.append("%")
         return f"{column} LIKE ?"
     
-    # Check if it looks like a regex (has special characters)
-    regex_chars = r'^$.*+?{}[]|()\\'
-    is_regex = any(c in search_value for c in regex_chars)
+    # Only treat as regex if it has explicit regex anchors or grouping constructs
+    # This avoids treating "n." or "v." as regex patterns
+    # Regex indicators: ^ at start, $ at end, or explicit grouping/alternation
+    is_regex = (
+        search_value.startswith('^') or 
+        search_value.endswith('$') or
+        '|' in search_value or  # alternation
+        ('(' in search_value and ')' in search_value) or  # grouping
+        ('[' in search_value and ']' in search_value)  # character class
+    )
     
     if is_regex:
         params.append(search_value)
@@ -180,6 +187,8 @@ def reflexes():
     lang_search = request.args.get("columns[2][search][value]", "", type=str)
     form_search = request.args.get("columns[3][search][value]", "", type=str)
     gloss_search = request.args.get("columns[4][search][value]", "", type=str)
+    
+
     # Order
     order = cols[request.args.get("order[0][column]", 2, type=int)]
     direction = request.args.get("order[0][dir]", "asc", type=str)

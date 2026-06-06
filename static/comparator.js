@@ -741,20 +741,42 @@ $(document).ready(function () {
       }
     }
     
-    // Setup filter inputs for a table - uses regex search
+    // Setup filter inputs for a table - server-side filtering with debounce
+    // Note: DataTables with scrollY moves thead into a wrapper, so we use the wrapper selector
     function setupColumnFilters(table, tableId) {
-      $('#' + tableId + ' thead tr.filter-row input.column-filter').on('keyup change', function() {
+      var debounceTimers = {};
+      var wrapper = $('#' + tableId + '_wrapper');
+      
+      wrapper.on('input', 'input.column-filter', function() {
         var input = $(this);
         var colIdx = parseInt(input.data('column'));
         var value = input.val();
         
-        // Validate regex
-        if (isValidRegex(value)) {
-          input.removeClass('invalid-regex');
-          // Use regex search (third param = true for regex, fourth = false for smart search)
-          table.column(colIdx).search(value, true, false).draw();
-        } else {
-          input.addClass('invalid-regex');
+        // Clear existing timer for this column
+        if (debounceTimers[colIdx]) {
+          clearTimeout(debounceTimers[colIdx]);
+        }
+        
+        // Debounce: wait 300ms after last keystroke before filtering
+        debounceTimers[colIdx] = setTimeout(function() {
+          table.column(colIdx).search(value).draw();
+        }, 300);
+      });
+      
+      // Also filter immediately on Enter key
+      wrapper.on('keypress', 'input.column-filter', function(e) {
+        if (e.which === 13) {  // Enter key
+          e.preventDefault();  // Prevent form submission
+          var input = $(this);
+          var colIdx = parseInt(input.data('column'));
+          var value = input.val();
+          
+          // Clear any pending debounce timer
+          if (debounceTimers[colIdx]) {
+            clearTimeout(debounceTimers[colIdx]);
+          }
+          
+          table.column(colIdx).search(value).draw();
         }
       });
     }
