@@ -197,8 +197,9 @@ class CorrespondenceExtractor:
         """
         Group patterns into correspondence sets.
         
-        Partial patterns (with gaps) are matched to all compatible total patterns.
-        Total patterns become canonical correspondence sets.
+        Each unique pattern (based on non-empty phoneme positions) becomes its own
+        correspondence set. Patterns with gaps can match sets where they agree on
+        all non-empty positions, but sets are split when there's phonetic variation.
         
         Args:
             patterns_with_cognates: List of (pattern, cognate_info) tuples
@@ -207,65 +208,85 @@ class CorrespondenceExtractor:
         Returns:
             List of CorrespondenceSet objects, sorted by count (descending)
         """
-        # Separate total patterns (no gaps) from partial patterns
-        total_patterns: dict[tuple, list[tuple[CorrespondencePattern, CognateSetInfo]]] = defaultdict(list)
-        partial_patterns: list[tuple[CorrespondencePattern, CognateSetInfo]] = []
+        # Group by exact pattern tuple first
+        exact_groups: dict[tuple, list[tuple[CorrespondencePattern, CognateSetInfo]]] = defaultdict(list)
         
         for pattern, cognate_info in patterns_with_cognates:
             pattern_tuple = pattern.to_tuple(languages)
-            has_gap = '' in pattern_tuple
-            
-            if has_gap:
-                partial_patterns.append((pattern, cognate_info))
-            else:
-                total_patterns[pattern_tuple].append((pattern, cognate_info))
+            exact_groups[pattern_tuple].append((pattern, cognate_info))
         
-        # Build correspondence sets from total patterns
-        correspondence_sets: dict[tuple, CorrespondenceSet] = {}
-        for pattern_tuple, items in total_patterns.items():
-            # Use first pattern as canonical
+        # Now merge groups where one is a subset of another (gaps match anything)
+        # But only if they don't conflict on any position
+        # Key insight: we want to merge pattern A into pattern B if:
+        #   - For every language where A has a phoneme, B has the same phoneme OR a gap
+        #   - B has at least as many non-gap positions as A
+        
+        # Build initial correspondence sets from exact groups
+        correspondence_sets: list[CorrespondenceSet] = []
+        
+        for pattern_tuple, items in exact_groups.items():
             canonical_pattern = items[0][0]
             corr_set = CorrespondenceSet(pattern=canonical_pattern)
-            
-            # Add all cognate sets
             for _, cognate_info in items:
                 corr_set.cognate_sets.append(cognate_info)
-            
             corr_set.count = len(corr_set.cognate_sets)
-            correspondence_sets[pattern_tuple] = corr_set
+            correspondence_sets.append(corr_set)
         
-        # Match partial patterns to compatible total patterns
-        for pattern, cognate_info in partial_patterns:
-            matched = False
-            for pattern_tuple, corr_set in correspondence_sets.items():
-                if pattern.is_instance_of(corr_set.pattern, languages):
-                    corr_set.cognate_sets.append(cognate_info)
-                    corr_set.count = len(corr_set.cognate_sets)
-                    matched = True
-                    # Note: a partial can match multiple total patterns
+        # Merge partial patterns into more complete compatible patterns
+        # Sort by number of non-empty positions (descending) so we process more complete patterns first
+        def count_non_empty_positions(corr_set: CorrespondenceSet) -> int:
+            return sum(1 for lang in languages 
+                      if corr_set.pattern.phonemes.get(lang, '') != '')
+        
+        correspondence_sets.sort(key=lambda cs: -count_non_empty_positions(cs))
+        
+        # Merge compatible sets
+        merged_sets: list[CorrespondenceSet] = []
+        used_indices: set[int] = set()
+        
+        for i, corr_set in enumerate(correspondence_sets):
+            if i in used_indices:
+                continue
             
-            # If no match, create a new set from this partial pattern
-            if not matched:
-                pattern_tuple = pattern.to_tuple(languages)
-                if pattern_tuple not in correspondence_sets:
-                    corr_set = CorrespondenceSet(pattern=pattern)
-                    corr_set.cognate_sets.append(cognate_info)
-                    corr_set.count = 1
-                    correspondence_sets[pattern_tuple] = corr_set
-                else:
-                    correspondence_sets[pattern_tuple].cognate_sets.append(cognate_info)
-                    correspondence_sets[pattern_tuple].count += 1
+            # This set becomes a "base" - try to merge other compatible sets into it
+            for j, other_set in enumerate(correspondence_sets):
+                if j <= i or j in used_indices:
+                    continue
+                
+                # Check if other_set's pattern is compatible with corr_set's pattern
+                # Compatible means: for every position where other has a phoneme,
+                # corr_set has the same phoneme OR corr_set has a gap
+                compatible = True
+                for lang in languages:
+                    other_phoneme = other_set.pattern.phonemes.get(lang, '')
+                    our_phoneme = corr_set.pattern.phonemes.get(lang, '')
+                    
+                    if other_phoneme != '' and our_phoneme != '' and other_phoneme != our_phoneme:
+                        compatible = False
+                        break
+                
+                if compatible:
+                    # Merge other_set into corr_set
+                    corr_set.cognate_sets.extend(other_set.cognate_sets)
+                    corr_set.count = len(corr_set.cognate_sets)
+                    
+                    # Update canonical pattern to include phonemes from merged set
+                    for lang in languages:
+                        other_phoneme = other_set.pattern.phonemes.get(lang, '')
+                        our_phoneme = corr_set.pattern.phonemes.get(lang, '')
+                        if our_phoneme == '' and other_phoneme != '':
+                            corr_set.pattern.phonemes[lang] = other_phoneme
+                    
+                    used_indices.add(j)
+            
+            merged_sets.append(corr_set)
         
         # Sort cognate sets within each correspondence set by gloss
-        for corr_set in correspondence_sets.values():
+        for corr_set in merged_sets:
             corr_set.cognate_sets.sort(key=lambda cs: cs.proto_gloss.lower())
         
         # Filter out sets with fewer than 2 non-empty positions
-        def count_non_empty(corr_set: CorrespondenceSet) -> int:
-            return sum(1 for lang in languages 
-                      if corr_set.pattern.phonemes.get(lang, '') not in ('', '-'))
-        
-        filtered_sets = [cs for cs in correspondence_sets.values() if count_non_empty(cs) >= 2]
+        filtered_sets = [cs for cs in merged_sets if count_non_empty_positions(cs) >= 2]
         
         # Sort correspondence sets by count (descending), then by pattern
         result = sorted(

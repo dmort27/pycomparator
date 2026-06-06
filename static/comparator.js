@@ -1143,16 +1143,14 @@ $(document).ready(function () {
           var row = $('<tr>');
           row.append($('<td class="lang-cell">').text(lang));
           
-          // Check if this language has a non-empty value in the correspondence pattern
-          var langHasPatternValue = corrPattern && corrPattern[lang] && 
-                                    corrPattern[lang] !== '' && corrPattern[lang] !== '-';
-          
           for (var i = 0; i < cogSet.alignment.length; i++) {
             var phoneme = cogSet.alignment[i][lang] || '';
             var cell = $('<td>');
             
-            // Only highlight if this is the pattern column AND this language has pattern data
-            if (i === cogSet.column_index && langHasPatternValue) {
+            // Highlight if this is the pattern column AND this cell has a phoneme
+            // (not just if the pattern header has a value - the pattern may show '-'
+            // when different cognate sets have different values for this language)
+            if (i === cogSet.column_index && phoneme !== '') {
               cell.addClass('highlight-col');
             }
             
