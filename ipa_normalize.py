@@ -52,6 +52,25 @@ TONE_MARKS = [
     '\u1DC8',  # ᷈ rising-falling
 ]
 
+# Superscript tone numbers
+SUPERSCRIPT_NUMBERS = [
+    '\u2070',  # ⁰
+    '\u00B9',  # ¹
+    '\u00B2',  # ²
+    '\u00B3',  # ³
+    '\u2074',  # ⁴
+    '\u2075',  # ⁵
+    '\u2076',  # ⁶
+    '\u2077',  # ⁷
+    '\u2078',  # ⁸
+    '\u2079',  # ⁹
+]
+
+# Plosives and affricates that can take aspiration
+# Note: These are base forms before affricate ties are added
+PLOSIVES = {'p', 'b', 't', 'd', 'k', 'g', 'ɡ', 'c', 'ɟ', 'q', 'ɢ', 'ʔ'}
+AFFRICATE_ENDINGS = {'s', 'z', 'ʃ', 'ʒ', 'ɕ', 'ʑ', 'θ', 'ð', 'f', 'v', 'x', 'ɣ', 'ɬ', 'ɮ'}
+
 # Affricates to add ties to (without tie → with tie)
 AFFRICATES = [
     ('ts', 't' + TIE + 's'),
@@ -83,8 +102,25 @@ CHAR_MAPPINGS = [
     ('ñ', 'ɲ'),   # n + combining tilde (U+006E U+0303)
 ]
 
+# Retroflex mappings: consonant + underdot → retroflex
+# The underdot can be combining dot below (U+0323) or combining diaeresis below (U+0324)
+UNDERDOT = '\u0323'           # ̣ COMBINING DOT BELOW
+UNDERDIAERESIS = '\u0324'     # ̤ COMBINING DIAERESIS BELOW
+RETROFLEX_MARKERS = {UNDERDOT, UNDERDIAERESIS}
+RETROFLEX_MAPPINGS = {
+    't': 'ʈ',
+    'd': 'ɖ',
+    's': 'ʂ',
+    'z': 'ʐ',
+    'n': 'ɳ',
+    'l': 'ɭ',
+}
+
 # Long vowel marker
 LONG = 'ː'
+
+# Aspiration marker
+ASPIRATION = 'ʰ'
 
 
 def remove_tone_marks(text: str) -> str:
@@ -97,6 +133,82 @@ def remove_tone_marks(text: str) -> str:
             result.append(char)
     # Recompose (NFC) to get clean output
     return unicodedata.normalize('NFC', ''.join(result))
+
+
+def remove_superscript_numbers(text: str) -> str:
+    """Remove superscript tone numbers from text."""
+    for num in SUPERSCRIPT_NUMBERS:
+        text = text.replace(num, '')
+    return text
+
+
+def convert_retroflex(text: str) -> str:
+    """Convert consonants with underdot/underdiaeresis to retroflex equivalents.
+    
+    E.g., ṭ → ʈ, ḍ → ɖ, ṣ → ʂ, etc.
+    Handles both combining dot below (U+0323) and combining diaeresis below (U+0324).
+    """
+    # Decompose to NFD to separate base character from combining marks
+    text = unicodedata.normalize('NFD', text)
+    result = []
+    i = 0
+    while i < len(text):
+        char = text[i]
+        # Check if next character is a retroflex marker and current char has a retroflex mapping
+        if (i + 1 < len(text) and 
+            text[i + 1] in RETROFLEX_MARKERS and 
+            char in RETROFLEX_MAPPINGS):
+            result.append(RETROFLEX_MAPPINGS[char])
+            i += 2  # Skip both the consonant and the marker
+        else:
+            result.append(char)
+            i += 1
+    # Recompose
+    return unicodedata.normalize('NFC', ''.join(result))
+
+
+def convert_aspiration(text: str) -> str:
+    """Convert 'h' following plosives/affricates to aspiration marker ʰ.
+    
+    Handles both simple plosives (ph → pʰ) and affricates (tsh → t͡sʰ).
+    Must be called AFTER affricate ties are added.
+    """
+    result = []
+    i = 0
+    chars = list(text)
+    
+    while i < len(chars):
+        char = chars[i]
+        
+        if char == 'h' and i > 0:
+            # Look back to find what precedes this 'h'
+            prev_idx = i - 1
+            prev_char = chars[prev_idx]
+            
+            # Check if preceded by a plosive
+            if prev_char in PLOSIVES:
+                result.append(ASPIRATION)
+                i += 1
+                continue
+            
+            # Check if preceded by an affricate (ending in fricative after tie)
+            if prev_char in AFFRICATE_ENDINGS:
+                # Check if there's a tie before the fricative
+                if prev_idx >= 2 and chars[prev_idx - 1] == TIE:
+                    result.append(ASPIRATION)
+                    i += 1
+                    continue
+            
+            # Check if preceded by a retroflex that can take aspiration
+            if prev_char in {'ʈ', 'ɖ'}:
+                result.append(ASPIRATION)
+                i += 1
+                continue
+        
+        result.append(char)
+        i += 1
+    
+    return ''.join(result)
 
 
 def apply_char_mappings(text: str) -> str:
@@ -208,24 +320,30 @@ def normalize_to_ipa(form: str) -> str:
     """
     Normalize a transcription to IPA.
     
-    Applies the following transformations:
-    1. Remove tone marks
-    2. Apply character mappings (e.g., ñ → ɲ)
-    3. Convert digraphs (e.g., ng → ŋ, ny → ɲ)
-    4. Add ligature ties to affricates
-    5. Convert double vowels to long vowels
-    6. Convert y to j when appropriate
+    Applies the following transformations in order:
+    1. Convert retroflex consonants (t̤ → ʈ, etc.) - before tone removal
+    2. Remove tone diacritics
+    3. Remove superscript tone numbers
+    4. Convert double vowels to long vowels (after tone removal)
+    5. Apply character mappings (e.g., ñ → ɲ)
+    6. Convert digraphs (e.g., ng → ŋ, ny → ɲ)
+    7. Add ligature ties to affricates
+    8. Convert h after plosives/affricates to aspiration (ʰ)
+    9. Convert y to j when appropriate
     """
     if not form:
         return form
     
     # Apply transformations in order
-    result = remove_tone_marks(form)
-    result = apply_char_mappings(result)
-    result = convert_digraphs(result)
-    result = add_affricate_ties(result)
-    result = convert_double_vowels(result)
-    result = convert_y_to_j(result)
+    result = convert_retroflex(form)         # 1. Retroflex before tone removal
+    result = remove_tone_marks(result)       # 2. Remove tone diacritics
+    result = remove_superscript_numbers(result)  # 3. Remove superscript numbers
+    result = convert_double_vowels(result)   # 4. Double vowels → long (after tone removal)
+    result = apply_char_mappings(result)     # 5. Character mappings
+    result = convert_digraphs(result)        # 6. Digraphs
+    result = add_affricate_ties(result)      # 7. Affricate ties
+    result = convert_aspiration(result)      # 8. h → ʰ after plosives/affricates
+    result = convert_y_to_j(result)          # 9. y → j
     
     return result
 
@@ -233,24 +351,50 @@ def normalize_to_ipa(form: str) -> str:
 if __name__ == '__main__':
     # Test cases
     test_forms = [
+        # Basic tests
         'si-ðu-hu',
         'ʔa-ŋə-tsɐ',
-        'si-kwee',
-        'ʔa-rɐ-huu',
-        'sə́-lỳ',
+        'si-kwee',           # Double vowel
+        'ʔa-rɐ-huu',         # Double vowel
+        'sə́-lỳ',             # Tone marks
         'mí-tʰŷn',
         'báŋ-gôɹ',
         'tʃa-ka',
         'dʒu-mi',
         'y-ʔi-ʃî',
         'si-ŋi-tsy',
-        'bang',       # Test ng → ŋ
-        'singing',    # Test multiple ng → ŋ
-        'finger',     # Test ng in middle
-        'anya',       # Test ny → ɲ
-        'kenyan',     # Test ny → ɲ
-        'ñoño',       # Test ñ → ɲ (precomposed)
-        'cañon',      # Test ñ → ɲ
+        # Digraph tests
+        'bang',              # ng → ŋ
+        'singing',           # Multiple ng → ŋ
+        'finger',            # ng in middle
+        'anya',              # ny → ɲ
+        'kenyan',            # ny → ɲ
+        'ñoño',              # ñ → ɲ (precomposed)
+        'cañon',             # ñ → ɲ
+        # Aspiration tests
+        'pha',               # ph → pʰ
+        'thi',               # th → tʰ
+        'kha',               # kh → kʰ
+        'cha',               # ch → cʰ
+        'tsha',              # tsh → t͡sʰ
+        'tʃha',              # tʃh → t͡ʃʰ (already has ʃ)
+        # Retroflex tests (using combining dot below U+0323)
+        't\u0323a',          # ṭa: t + underdot → ʈa
+        'd\u0323i',          # ḍi: d + underdot → ɖi
+        's\u0323u',          # ṣu: s + underdot → ʂu
+        'n\u0323a',          # ṇa: n + underdot → ɳa
+        'l\u0323i',          # ḷi: l + underdot → ɭi
+        # Retroflex tests (using combining diaeresis below U+0324)
+        't\u0324a',          # t̤a: t + diaeresis below → ʈa
+        'd\u0324i',          # d̤i: d + diaeresis below → ɖi
+        # Superscript number tests
+        'ma¹',               # Superscript 1
+        'pa²³',              # Superscript 2, 3
+        'ka⁵⁵',              # Superscript 5, 5
+        # Combined tests
+        'áá',                # Tone + double vowel → aː
+        't\u0323ha',         # Retroflex + aspiration → ʈʰa
+        'tsha⁵⁵',            # Affricate + aspiration + tone numbers
     ]
     
     print("IPA Normalization Tests:")
