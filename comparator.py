@@ -330,7 +330,8 @@ def potcogs():
 
 @app.route("/protoforms")
 def protoforms():
-    cols = ["refid", "lname", "form", "gloss"]
+    # Columns: ID (refid), PLID (plangid), Proto-Language (lname), Form (ipaform), Gloss
+    cols = ["refid", "plangid", "lname", "ipaform", "gloss"]
     # limit parameters
     start = request.args.get("start", 0, type=int)
     length = request.args.get("length", 0, type=int)
@@ -350,14 +351,15 @@ def protoforms():
     c = get_db().cursor()
     
     # Build search conditions with regex support
+    # Search the ipaform column when filtering by "Form"
     params = []
     lang_cond = build_search_condition("langnames.name", lang_search, params)
-    form_cond = build_search_condition("form", form_search, params)
+    form_cond = build_search_condition("ipaform", form_search, params)
     gloss_cond = build_search_condition("gloss", gloss_search, params)
     
     params2 = []
     lang_cond2 = build_search_condition("lname", lang_search, params2)
-    form_cond2 = build_search_condition("form", form_search, params2)
+    form_cond2 = build_search_condition("ipaform", form_search, params2)
     gloss_cond2 = build_search_condition("gloss", gloss_search, params2)
     
     # If filtering by refids, find protoforms associated with those reflexes
@@ -398,7 +400,7 @@ def protoforms():
         filtered_total = int(c.fetchone()[0])
         
         c.execute(
-            f"""SELECT DISTINCT reflexes.refid, plangid, langnames.name AS lname, form, gloss
+            f"""SELECT DISTINCT reflexes.refid, plangid, langnames.name AS lname, ipaform, gloss
                 FROM reflexes
                 INNER JOIN descendant_of ON plangid=reflexes.langid
                 JOIN langnames ON langnames.langid=reflexes.langid
@@ -428,7 +430,7 @@ def protoforms():
         )
         filtered_total = int(c.fetchone()[0])
         c.execute(
-            f"""SELECT DISTINCT refid, plangid, langnames.name AS lname, form, gloss
+            f"""SELECT DISTINCT refid, plangid, langnames.name AS lname, ipaform, gloss
                 FROM reflexes
                 INNER JOIN descendant_of ON plangid=reflexes.langid
                 JOIN langnames ON langnames.langid=reflexes.langid
@@ -883,3 +885,116 @@ def correspondence_sets():
 def correspondence_sets_dialog():
     """Render the correspondence sets dialog template."""
     return render_template("correspondence_sets_dialog.jinja2")
+
+
+##############################################################################
+# Minimal Generalization Analysis
+##############################################################################
+
+
+@app.route("/minimal_generalization")
+def minimal_generalization():
+    """
+    Analyze correspondence sets to find minimal distinguishing generalizations.
+
+    For each correspondence set reflecting a single proto phoneme, finds the
+    minimal generalization that distinguishes that set from the others based
+    on preceding and following context in the protoform.
+
+    Query parameters:
+        plangid: Proto-language ID (required)
+        phoneme: Proto phoneme to analyze (required)
+
+    Returns:
+        JSON with analysis results including pairwise generalizations
+    """
+    from correspondence import extract_correspondence_sets_for_protolang
+    from minimal_generalization import analyze_correspondence_sets
+
+    plangid = request.args.get("plangid", type=int)
+    phoneme = request.args.get("phoneme", type=str)
+
+    if plangid is None:
+        return jsonify({"error": "plangid parameter is required"}), 400
+    if phoneme is None:
+        return jsonify({"error": "phoneme parameter is required"}), 400
+
+    c = get_db().cursor()
+
+    # Get proto-language name
+    c.execute("SELECT name FROM langnames WHERE langid = ?", (plangid,))
+    row = c.fetchone()
+    if row is None:
+        return jsonify({"error": f"Proto-language with ID {plangid} not found"}), 404
+
+    proto_lang_name = row[0]
+
+    # Extract correspondence sets
+    corr_sets, languages = extract_correspondence_sets_for_protolang(
+        c, plangid, proto_lang_name
+    )
+
+    # Analyze the specified phoneme
+    analysis = analyze_correspondence_sets(corr_sets, proto_lang_name, phoneme)
+
+    return jsonify({
+        "proto_language": proto_lang_name,
+        "plangid": plangid,
+        "phoneme": phoneme,
+        "analysis": analysis
+    })
+
+
+@app.route("/proto_phonemes")
+def proto_phonemes():
+    """
+    Get list of proto phonemes that have multiple correspondence sets.
+
+    These are the phonemes where minimal generalization analysis is useful.
+
+    Query parameters:
+        plangid: Proto-language ID (required)
+
+    Returns:
+        JSON with list of proto phonemes and their correspondence set counts
+    """
+    from correspondence import extract_correspondence_sets_for_protolang
+
+    plangid = request.args.get("plangid", type=int)
+    if plangid is None:
+        return jsonify({"error": "plangid parameter is required"}), 400
+
+    c = get_db().cursor()
+
+    # Get proto-language name
+    c.execute("SELECT name FROM langnames WHERE langid = ?", (plangid,))
+    row = c.fetchone()
+    if row is None:
+        return jsonify({"error": f"Proto-language with ID {plangid} not found"}), 404
+
+    proto_lang_name = row[0]
+
+    # Extract correspondence sets
+    corr_sets, languages = extract_correspondence_sets_for_protolang(
+        c, plangid, proto_lang_name
+    )
+
+    # Count correspondence sets per proto phoneme
+    phoneme_counts = {}
+    for cs in corr_sets:
+        pp = cs.pattern.phonemes.get(proto_lang_name, '')
+        if pp:
+            phoneme_counts[pp] = phoneme_counts.get(pp, 0) + 1
+
+    # Return phonemes with 2+ correspondence sets, sorted by count
+    result = [
+        {"phoneme": pp, "count": count}
+        for pp, count in sorted(phoneme_counts.items(), key=lambda x: -x[1])
+        if count >= 2
+    ]
+
+    return jsonify({
+        "proto_language": proto_lang_name,
+        "plangid": plangid,
+        "phonemes": result
+    })
