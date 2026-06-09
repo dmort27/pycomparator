@@ -271,6 +271,151 @@ def find_minimal_generalization(set1: CorrespondenceSet,
     return Context(left=left_spec, right=right_spec)
 
 
+def _count_context_diversity(corr_set: CorrespondenceSet, proto_lang: str) -> int:
+    """
+    Count the number of unique (left, right) context pairs for a correspondence set.
+    Higher diversity suggests a less restricted (more general) context.
+    """
+    lefts, rights = _collect_contexts(corr_set, proto_lang)
+    unique_pairs = set(zip(lefts, rights))
+    return len(unique_pairs)
+
+
+def _compute_restriction_score(corr_set: CorrespondenceSet,
+                                other_sets: list[CorrespondenceSet],
+                                proto_lang: str) -> tuple[int, Optional[Context]]:
+    """
+    Compute how restricted a correspondence set is relative to others.
+    
+    Returns:
+        (restriction_score, context) where lower score = less restricted.
+        Score is the total number of features needed to distinguish from all others.
+        Context is the minimal generalization vs all others combined.
+    """
+    if not other_sets:
+        return (0, Context(left=None, right=None))
+    
+    # Collect all contexts from this set
+    lefts, rights = _collect_contexts(corr_set, proto_lang)
+    
+    # Collect all contexts from other sets combined
+    other_lefts = []
+    other_rights = []
+    for other in other_sets:
+        ol, or_ = _collect_contexts(other, proto_lang)
+        other_lefts.extend(ol)
+        other_rights.extend(or_)
+    
+    # Find minimal features to distinguish
+    left_spec = _find_minimal_features(lefts, other_lefts)
+    right_spec = _find_minimal_features(rights, other_rights)
+    
+    # Score = number of features required
+    score = 0
+    if left_spec:
+        score += len([k for k in left_spec if k != '#'])
+    if right_spec:
+        score += len([k for k in right_spec if k != '#'])
+    
+    return (score, Context(left=left_spec, right=right_spec))
+
+
+def find_default_and_contexts(correspondence_sets: list[CorrespondenceSet],
+                               proto_lang: str,
+                               proto_phoneme: str) -> dict:
+    """
+    Find the least restricted (default) correspondence set and minimal contexts for others.
+    
+    The default set is the one that requires the fewest features to distinguish
+    from all other sets, representing the "elsewhere" condition.
+    
+    Args:
+        correspondence_sets: List of correspondence sets
+        proto_lang: Name of the proto language
+        proto_phoneme: The proto phoneme to analyze
+        
+    Returns:
+        Dict with:
+          - default_index: Index of the default (least restricted) set
+          - default_set: The default correspondence set
+          - conditioned_sets: List of other sets with their distinguishing contexts
+    """
+    # Filter to sets with this proto phoneme
+    relevant_sets = [cs for cs in correspondence_sets 
+                     if cs.pattern.phonemes.get(proto_lang) == proto_phoneme]
+    
+    if len(relevant_sets) == 0:
+        return {
+            'proto_phoneme': proto_phoneme,
+            'num_sets': 0,
+            'message': 'No correspondence sets found',
+            'default_index': None,
+            'default_set': None,
+            'conditioned_sets': []
+        }
+    
+    if len(relevant_sets) == 1:
+        return {
+            'proto_phoneme': proto_phoneme,
+            'num_sets': 1,
+            'message': 'Only one correspondence set (trivially the default)',
+            'default_index': 0,
+            'default_set': _format_set(relevant_sets[0], proto_lang),
+            'conditioned_sets': []
+        }
+    
+    # Score each set by how restricted it is
+    scores = []
+    for i, cs in enumerate(relevant_sets):
+        others = [s for j, s in enumerate(relevant_sets) if j != i]
+        score, ctx = _compute_restriction_score(cs, others, proto_lang)
+        # Also factor in context diversity (more diverse = more general)
+        diversity = _count_context_diversity(cs, proto_lang)
+        # Lower combined score = less restricted
+        # Use negative diversity so higher diversity lowers the score
+        combined = score - (diversity * 0.1)
+        scores.append((combined, i, ctx))
+    
+    # Sort by score (lowest = least restricted = default)
+    scores.sort(key=lambda x: x[0])
+    default_idx = scores[0][1]
+    default_set = relevant_sets[default_idx]
+    
+    # Find minimal contexts for each non-default set vs the default
+    conditioned = []
+    for i, cs in enumerate(relevant_sets):
+        if i == default_idx:
+            continue
+        
+        ctx = find_minimal_generalization(cs, default_set, proto_lang)
+        conditioned.append({
+            'index': i,
+            'pattern': {k: v for k, v in cs.pattern.phonemes.items() if v},
+            'count': cs.count,
+            'context': {
+                'left': ctx.left if ctx else None,
+                'right': ctx.right if ctx else None,
+                'description': ctx.describe() if ctx else 'no distinguishing context'
+            }
+        })
+    
+    return {
+        'proto_phoneme': proto_phoneme,
+        'num_sets': len(relevant_sets),
+        'default_index': default_idx,
+        'default_set': _format_set(default_set, proto_lang),
+        'conditioned_sets': conditioned
+    }
+
+
+def _format_set(cs: CorrespondenceSet, proto_lang: str) -> dict:
+    """Format a correspondence set for output."""
+    return {
+        'pattern': {k: v for k, v in cs.pattern.phonemes.items() if v},
+        'count': cs.count
+    }
+
+
 def analyze_correspondence_sets(correspondence_sets: list[CorrespondenceSet],
                                  proto_lang: str,
                                  proto_phoneme: str) -> dict:
@@ -345,6 +490,33 @@ def analyze_correspondence_sets(correspondence_sets: list[CorrespondenceSet],
     }
 
 
+def analyze_all_proto_phonemes(correspondence_sets: list[CorrespondenceSet],
+                                proto_lang: str) -> list[dict]:
+    """
+    Analyze all proto phonemes and find default + conditioned sets for each.
+    
+    Args:
+        correspondence_sets: List of correspondence sets
+        proto_lang: Name of the proto language
+        
+    Returns:
+        List of analysis results, one per proto phoneme
+    """
+    # Get all unique proto phonemes
+    proto_phonemes = set()
+    for cs in correspondence_sets:
+        phoneme = cs.pattern.phonemes.get(proto_lang, '')
+        if phoneme:
+            proto_phonemes.add(phoneme)
+    
+    results = []
+    for phoneme in sorted(proto_phonemes):
+        analysis = find_default_and_contexts(correspondence_sets, proto_lang, phoneme)
+        results.append(analysis)
+    
+    return results
+
+
 if __name__ == '__main__':
     import sqlite3
     from correspondence import extract_correspondence_sets_for_protolang
@@ -355,25 +527,48 @@ if __name__ == '__main__':
     result = extract_correspondence_sets_for_protolang(c, 17, 'Proto-Tangkhulic')
     correspondence_sets, languages = result
     
-    analysis = analyze_correspondence_sets(
-        correspondence_sets, 'Proto-Tangkhulic', 'ʃ'
-    )
-    
-    print(f"Analysis of Proto-Tangkhulic *ʃ")
-    print(f"Number of correspondence sets: {analysis['num_sets']}")
+    print("=" * 80)
+    print("ANALYSIS OF ALL PROTO-TANGKHULIC PHONEMES")
+    print("=" * 80)
     print()
     
-    for pair in analysis['pairwise'][:10]:
-        ctx1 = pair.get('context_1_vs_2')
-        ctx2 = pair.get('context_2_vs_1')
-        if ctx1 or ctx2:
-            print(f"Set {pair['set1_index']+1} (n={pair['set1_count']}) vs Set {pair['set2_index']+1} (n={pair['set2_count']})")
-            if ctx1:
-                print(f"  Set 1: Context(left={ctx1['left']}, right={ctx1['right']})")
-                print(f"         → {ctx1['description']}")
-            if ctx2:
-                print(f"  Set 2: Context(left={ctx2['left']}, right={ctx2['right']})")
-                print(f"         → {ctx2['description']}")
+    all_results = analyze_all_proto_phonemes(correspondence_sets, 'Proto-Tangkhulic')
+    
+    for analysis in all_results:
+        phoneme = analysis['proto_phoneme']
+        num_sets = analysis['num_sets']
+        
+        print(f"*{phoneme} ({num_sets} correspondence set{'s' if num_sets != 1 else ''})")
+        print("-" * 40)
+        
+        if num_sets <= 1:
+            if analysis.get('message'):
+                print(f"  {analysis['message']}")
+            if analysis.get('default_set'):
+                default = analysis['default_set']
+                print(f"  Default pattern: {default['pattern']} (n={default['count']})")
             print()
+            continue
+        
+        # Print default (elsewhere) set
+        default = analysis['default_set']
+        default_idx = analysis['default_index']
+        print(f"  DEFAULT (Set {default_idx + 1}): {default['pattern']}")
+        print(f"    Count: {default['count']}")
+        print(f"    Context: elsewhere (least restricted)")
+        print()
+        
+        # Print conditioned sets
+        for cond in analysis['conditioned_sets']:
+            idx = cond['index']
+            ctx = cond['context']
+            print(f"  CONDITIONED (Set {idx + 1}): {cond['pattern']}")
+            print(f"    Count: {cond['count']}")
+            print(f"    Context: {ctx['description']}")
+            if ctx['left'] or ctx['right']:
+                print(f"    Features: left={ctx['left']}, right={ctx['right']}")
+            print()
+        
+        print()
     
     conn.close()
