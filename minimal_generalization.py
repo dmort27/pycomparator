@@ -6,71 +6,147 @@ generalization that distinguishes that set from the others based on preceding
 and following context in the protoform.
 """
 
-from collections import defaultdict
 from dataclasses import dataclass
-from typing import Optional
+from typing import NamedTuple, Optional, FrozenSet, Union
 
 import panphon
+from panphon.segment import Segment
 
 from correspondence import CorrespondenceSet, CognateSetInfo
 
-
-# Word boundary marker
-WORD_BOUNDARY = '#'
 
 # Initialize panphon feature table
 _ft = panphon.FeatureTable()
 
 
-@dataclass
-class Context:
-    """Context of a proto phoneme in a protoform."""
-    preceding: str  # Preceding phoneme or '#' for word boundary
-    following: str  # Following phoneme or '#' for word boundary
+class HashableSegment:
+    """A hashable wrapper around panphon Segment for use in sets."""
+    
+    def __init__(self, segment: Segment, phoneme: str = ''):
+        self._segment = segment
+        self._phoneme = phoneme  # Original IPA string
+        self._hash = hash(tuple(sorted(segment.data.items())))
+    
+    @property
+    def segment(self) -> Segment:
+        return self._segment
+    
+    @property
+    def phoneme(self) -> str:
+        return self._phoneme
     
     def __hash__(self):
-        return hash((self.preceding, self.following))
+        return self._hash
     
     def __eq__(self, other):
-        if not isinstance(other, Context):
+        if not isinstance(other, HashableSegment):
             return False
-        return self.preceding == other.preceding and self.following == other.following
+        return self._segment.data == other._segment.data
+    
+    def __repr__(self):
+        if self._phoneme:
+            return f"Seg({self._phoneme})"
+        return f"Seg({self._segment})"
+    
+    def get(self, feature: str, default=None):
+        """Get a feature value from the underlying segment."""
+        return self._segment.data.get(feature, default)
+    
+    def matches_features(self, features: dict[str, int]) -> bool:
+        """Check if this segment matches all the given feature constraints."""
+        for feat, val in features.items():
+            if self._segment.data.get(feat, 0) != val:
+                return False
+        return True
+
+
+class WordBoundary:
+    """Represents a word boundary (#) in context."""
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __hash__(self):
+        return hash('#')
+    
+    def __eq__(self, other):
+        return isinstance(other, WordBoundary)
+    
+    def __repr__(self):
+        return "#"
+    
+    @property
+    def phoneme(self) -> str:
+        return '#'
+
+
+WORD_BOUNDARY = WordBoundary()
+
+# Type alias for context elements
+ContextElement = Union[HashableSegment, WordBoundary]
+
+
+class Context(NamedTuple):
+    """
+    Context of a correspondence set in protoforms.
+    
+    Each field is a frozenset of HashableSegment objects (or WordBoundary) 
+    representing the disjunctive contexts that predict this correspondence set.
+    
+    For example, if left = {k, g} and right = {i, e}, the correspondence set
+    occurs when preceded by /k/ OR /g/ AND followed by /i/ OR /e/.
+    """
+    left: FrozenSet[ContextElement]   # Preceding segments
+    right: FrozenSet[ContextElement]  # Following segments
+
+
+def phoneme_to_segment(phoneme: str) -> Optional[HashableSegment]:
+    """Convert an IPA phoneme string to a HashableSegment."""
+    if not phoneme:
+        return None
+    segs = _ft.word_fts(phoneme)
+    if segs:
+        return HashableSegment(segs[0], phoneme)
+    return None
 
 
 @dataclass 
 class Generalization:
     """A generalization over contexts that distinguishes correspondence sets."""
-    # Feature constraints on preceding context (None = any)
-    preceding_features: Optional[dict[str, int]] = None
-    # Feature constraints on following context (None = any)
-    following_features: Optional[dict[str, int]] = None
-    # Specific preceding phoneme (if more specific than features)
-    preceding_phoneme: Optional[str] = None
-    # Specific following phoneme (if more specific than features)
-    following_phoneme: Optional[str] = None
+    # Feature constraints on left (preceding) context (None = any)
+    left_features: Optional[dict[str, int]] = None
+    # Feature constraints on right (following) context (None = any)
+    right_features: Optional[dict[str, int]] = None
+    # Specific left phoneme string (if more specific than features)
+    left_phoneme: Optional[str] = None
+    # Specific right phoneme string (if more specific than features)
+    right_phoneme: Optional[str] = None
     
     def describe(self) -> str:
         """Return a human-readable description of the generalization."""
         parts = []
         
-        # Describe preceding context
-        if self.preceding_phoneme:
-            if self.preceding_phoneme == WORD_BOUNDARY:
+        # Describe left (preceding) context
+        if self.left_phoneme:
+            if self.left_phoneme == '#':
                 parts.append("word-initially")
             else:
-                parts.append(f"after /{self.preceding_phoneme}/")
-        elif self.preceding_features:
-            feat_desc = self._describe_features(self.preceding_features)
+                parts.append(f"after /{self.left_phoneme}/")
+        elif self.left_features:
+            feat_desc = self._describe_features(self.left_features)
             parts.append(f"after [{feat_desc}]")
         
-        # Describe following context
-        if self.following_phoneme:
-            if self.following_phoneme == WORD_BOUNDARY:
+        # Describe right (following) context
+        if self.right_phoneme:
+            if self.right_phoneme == '#':
                 parts.append("word-finally")
             else:
-                parts.append(f"before /{self.following_phoneme}/")
-        elif self.following_features:
-            feat_desc = self._describe_features(self.following_features)
+                parts.append(f"before /{self.right_phoneme}/")
+        elif self.right_features:
+            feat_desc = self._describe_features(self.right_features)
             parts.append(f"before [{feat_desc}]")
         
         if not parts:
@@ -87,13 +163,12 @@ class Generalization:
         return ', '.join(parts)
 
 
-def get_protoform_segments(protoform: str, alignment: list[dict[str, str]], 
+def get_protoform_segments(alignment: list[dict[str, str]], 
                            proto_lang: str) -> list[str]:
     """
     Extract the sequence of proto phonemes from an alignment, ignoring gaps.
     
     Args:
-        protoform: The protoform string (for reference)
         alignment: List of alignment columns
         proto_lang: Name of the proto language
         
@@ -108,24 +183,23 @@ def get_protoform_segments(protoform: str, alignment: list[dict[str, str]],
     return segments
 
 
-def extract_context(cognate_info: CognateSetInfo, proto_lang: str) -> Context:
+def extract_context_for_cognate(cognate_info: CognateSetInfo, 
+                                 proto_lang: str) -> tuple[ContextElement, ContextElement]:
     """
-    Extract the preceding and following context for a proto phoneme.
+    Extract the left and right context for a proto phoneme in a single cognate set.
     
     Args:
         cognate_info: Information about a cognate set
         proto_lang: Name of the proto language
         
     Returns:
-        Context with preceding and following phonemes
+        Tuple of (left_element, right_element) where each is HashableSegment or WordBoundary
     """
     alignment = cognate_info.alignment
     col_idx = cognate_info.column_index
     
     # Get all non-empty proto segments
-    segments = get_protoform_segments(
-        cognate_info.proto_form, alignment, proto_lang
-    )
+    segments = get_protoform_segments(alignment, proto_lang)
     
     # Find position of our phoneme in the segment list
     # Count non-empty proto phonemes up to col_idx
@@ -134,106 +208,75 @@ def extract_context(cognate_info: CognateSetInfo, proto_lang: str) -> Context:
         if alignment[i].get(proto_lang, ''):
             segment_pos += 1
     
-    # Get preceding (or word boundary)
+    # Get left (preceding) context
     if segment_pos == 0:
-        preceding = WORD_BOUNDARY
+        left = WORD_BOUNDARY
     else:
-        preceding = segments[segment_pos - 1]
+        left_phoneme = segments[segment_pos - 1]
+        left = phoneme_to_segment(left_phoneme) or WORD_BOUNDARY
     
-    # Get following (or word boundary)
+    # Get right (following) context
     if segment_pos >= len(segments) - 1:
-        following = WORD_BOUNDARY
+        right = WORD_BOUNDARY
     else:
-        following = segments[segment_pos + 1]
+        right_phoneme = segments[segment_pos + 1]
+        right = phoneme_to_segment(right_phoneme) or WORD_BOUNDARY
     
-    return Context(preceding=preceding, following=following)
+    return (left, right)
 
 
-def get_phoneme_features(phoneme: str) -> Optional[dict[str, int]]:
+def build_context_for_correspondence_set(corr_set: CorrespondenceSet,
+                                          proto_lang: str) -> Context:
     """
-    Get panphon features for a phoneme.
+    Build a Context (with sets of segments) for a correspondence set.
+    
+    Aggregates all left and right contexts from all cognate sets in 
+    the correspondence set into disjunctive sets.
     
     Args:
-        phoneme: IPA phoneme
+        corr_set: The correspondence set to analyze
+        proto_lang: Name of the proto language
         
     Returns:
-        Dict of feature name -> value (1/-1/0), or None if not found
+        Context with frozensets of left and right segments
     """
-    if phoneme == WORD_BOUNDARY:
-        return None
+    left_set = set()
+    right_set = set()
     
-    fts = _ft.word_fts(phoneme)
-    if not fts:
-        return None
+    for cognate_info in corr_set.cognate_sets:
+        left, right = extract_context_for_cognate(cognate_info, proto_lang)
+        left_set.add(left)
+        right_set.add(right)
     
-    # Return the features of the first segment
-    return dict(fts[0])
+    return Context(left=frozenset(left_set), right=frozenset(right_set))
 
 
-def features_match(phoneme: str, feature_constraints: dict[str, int]) -> bool:
+def find_distinguishing_features(positive_segs: FrozenSet[ContextElement],
+                                  negative_segs: FrozenSet[ContextElement]) -> Optional[dict[str, int]]:
     """
-    Check if a phoneme matches the given feature constraints.
+    Find minimal feature set that matches all positive segments but no negative ones.
     
     Args:
-        phoneme: IPA phoneme
-        feature_constraints: Dict of feature name -> required value
-        
-    Returns:
-        True if phoneme has all the specified feature values
-    """
-    if phoneme == WORD_BOUNDARY:
-        return False
-    
-    fts = get_phoneme_features(phoneme)
-    if fts is None:
-        return False
-    
-    for feat, val in feature_constraints.items():
-        if fts.get(feat, 0) != val:
-            return False
-    return True
-
-
-def find_distinguishing_features(positive_phonemes: set[str], 
-                                  negative_phonemes: set[str]) -> Optional[dict[str, int]]:
-    """
-    Find minimal feature set that matches all positive phonemes but no negative ones.
-    
-    Args:
-        positive_phonemes: Phonemes that should match
-        negative_phonemes: Phonemes that should not match
+        positive_segs: Segments that should match (from set we're characterizing)
+        negative_segs: Segments that should NOT match (from other set)
         
     Returns:
         Dict of features, or None if no distinguishing features found
     """
-    if not positive_phonemes:
+    # Separate out word boundaries
+    pos_segments = [s for s in positive_segs if isinstance(s, HashableSegment)]
+    neg_segments = [s for s in negative_segs if isinstance(s, HashableSegment)]
+    
+    if not pos_segments:
         return None
     
-    # Handle word boundary specially
-    if positive_phonemes == {WORD_BOUNDARY}:
-        if WORD_BOUNDARY not in negative_phonemes:
-            return None  # Will use phoneme-level distinction
-        return None
-    
-    # Remove word boundary from consideration for features
-    positive_phonemes = positive_phonemes - {WORD_BOUNDARY}
-    negative_phonemes = negative_phonemes - {WORD_BOUNDARY}
-    
-    if not positive_phonemes:
-        return None
-    
-    # Get features for all positive phonemes
-    positive_features = []
-    for p in positive_phonemes:
-        fts = get_phoneme_features(p)
-        if fts:
-            positive_features.append(fts)
+    # Get features for all positive segments
+    positive_features = [dict(s.segment.data) for s in pos_segments]
     
     if not positive_features:
         return None
     
-    # Find features that are consistent across all positive phonemes
-    # (same value for all)
+    # Find features that are consistent across all positive segments
     consistent_features = {}
     all_feature_names = set()
     for fts in positive_features:
@@ -247,15 +290,10 @@ def find_distinguishing_features(positive_phonemes: set[str],
     if not consistent_features:
         return None
     
-    # Get features for negative phonemes
-    negative_features = []
-    for p in negative_phonemes:
-        fts = get_phoneme_features(p)
-        if fts:
-            negative_features.append(fts)
+    # Get features for negative segments
+    negative_features = [dict(s.segment.data) for s in neg_segments]
     
-    # Find minimal subset that excludes all negative phonemes
-    # Start with single features, then pairs, etc.
+    # Find minimal subset that excludes all negative segments
     feature_names = list(consistent_features.keys())
     
     # Try single features first
@@ -304,128 +342,24 @@ def find_distinguishing_features(positive_phonemes: set[str],
     return None
 
 
-def find_minimal_generalization(set1_contexts: list[Context],
-                                 set2_contexts: list[Context]) -> Optional[Generalization]:
-    """
-    Find the minimal generalization that distinguishes two sets of contexts.
-    
-    Args:
-        set1_contexts: Contexts from correspondence set 1
-        set2_contexts: Contexts from correspondence set 2
-        
-    Returns:
-        Generalization that matches set1 but not set2, or None if not found
-    """
-    # Collect all preceding and following phonemes for each set
-    set1_preceding = {c.preceding for c in set1_contexts}
-    set1_following = {c.following for c in set1_contexts}
-    set2_preceding = {c.preceding for c in set2_contexts}
-    set2_following = {c.following for c in set2_contexts}
-    
-    gen = Generalization()
-    found_distinction = False
-    
-    # Strategy 1: Try to distinguish by preceding context (no overlap)
-    if set1_preceding and not set1_preceding.intersection(set2_preceding):
-        if len(set1_preceding) == 1:
-            gen.preceding_phoneme = list(set1_preceding)[0]
-            found_distinction = True
-        else:
-            feat = find_distinguishing_features(set1_preceding, set2_preceding)
-            if feat:
-                gen.preceding_features = feat
-                found_distinction = True
-    
-    # Strategy 2: Try to distinguish by following context (no overlap)
-    if not found_distinction and set1_following and not set1_following.intersection(set2_following):
-        if len(set1_following) == 1:
-            gen.following_phoneme = list(set1_following)[0]
-            found_distinction = True
-        else:
-            feat = find_distinguishing_features(set1_following, set2_following)
-            if feat:
-                gen.following_features = feat
-                found_distinction = True
-    
-    # Strategy 3: Try features that distinguish the TYPICAL case even with overlap
-    # Find phonemes that appear only in set1 and not in set2
-    if not found_distinction:
-        unique_preceding = set1_preceding - set2_preceding
-        if unique_preceding:
-            if len(unique_preceding) == 1:
-                gen.preceding_phoneme = list(unique_preceding)[0]
-                found_distinction = True
-            else:
-                feat = find_distinguishing_features(unique_preceding, set2_preceding)
-                if feat:
-                    gen.preceding_features = feat
-                    found_distinction = True
-    
-    if not found_distinction:
-        unique_following = set1_following - set2_following
-        if unique_following:
-            if len(unique_following) == 1:
-                gen.following_phoneme = list(unique_following)[0]
-                found_distinction = True
-            else:
-                feat = find_distinguishing_features(unique_following, set2_following)
-                if feat:
-                    gen.following_features = feat
-                    found_distinction = True
-    
-    # Strategy 4: Try to find features that characterize most of set1 vs set2
-    # even if there's overlap in specific phonemes
-    if not found_distinction:
-        # Try to find a feature that is TRUE for most of set1_following 
-        # but FALSE for most of set2_following
-        feat = find_probabilistic_features(set1_following, set2_following)
-        if feat:
-            gen.following_features = feat
-            found_distinction = True
-    
-    if not found_distinction:
-        feat = find_probabilistic_features(set1_preceding, set2_preceding)
-        if feat:
-            gen.preceding_features = feat
-            found_distinction = True
-    
-    if found_distinction:
-        return gen
-    return None
-
-
-def find_probabilistic_features(positive_phonemes: set[str], 
-                                 negative_phonemes: set[str],
+def find_probabilistic_features(positive_segs: FrozenSet[ContextElement], 
+                                 negative_segs: FrozenSet[ContextElement],
                                  threshold: float = 0.7) -> Optional[dict[str, int]]:
     """
     Find features that characterize most (>threshold) of positive but few of negative.
-    
-    This is useful when there's overlap between the sets.
     """
-    # Remove word boundaries
-    pos_phones = positive_phonemes - {WORD_BOUNDARY}
-    neg_phones = negative_phonemes - {WORD_BOUNDARY}
+    pos_segments = [s for s in positive_segs if isinstance(s, HashableSegment)]
+    neg_segments = [s for s in negative_segs if isinstance(s, HashableSegment)]
     
-    if not pos_phones:
+    if not pos_segments:
         return None
     
-    # Get features for all phonemes
-    pos_features = []
-    for p in pos_phones:
-        fts = get_phoneme_features(p)
-        if fts:
-            pos_features.append(fts)
-    
-    neg_features = []
-    for p in neg_phones:
-        fts = get_phoneme_features(p)
-        if fts:
-            neg_features.append(fts)
+    pos_features = [dict(s.segment.data) for s in pos_segments]
+    neg_features = [dict(s.segment.data) for s in neg_segments]
     
     if not pos_features:
         return None
     
-    # Find features where value is consistent in positive set
     all_feature_names = set()
     for fts in pos_features:
         all_feature_names.update(fts.keys())
@@ -435,18 +369,15 @@ def find_probabilistic_features(positive_phonemes: set[str],
     
     for feat in all_feature_names:
         for target_val in [1, -1]:
-            # Count how many positive phonemes have this value
             pos_count = sum(1 for fts in pos_features if fts.get(feat, 0) == target_val)
             pos_ratio = pos_count / len(pos_features)
             
-            # Count how many negative phonemes have this value
             if neg_features:
                 neg_count = sum(1 for fts in neg_features if fts.get(feat, 0) == target_val)
                 neg_ratio = neg_count / len(neg_features)
             else:
                 neg_ratio = 0
             
-            # Score: high positive ratio, low negative ratio
             if pos_ratio >= threshold and neg_ratio <= (1 - threshold):
                 score = pos_ratio - neg_ratio
                 if score > best_score:
@@ -454,6 +385,91 @@ def find_probabilistic_features(positive_phonemes: set[str],
                     best_feature = {feat: target_val}
     
     return best_feature
+
+
+def find_minimal_generalization(ctx1: Context, ctx2: Context) -> Optional[Generalization]:
+    """
+    Find the minimal generalization that distinguishes context 1 from context 2.
+    
+    Args:
+        ctx1: Context from correspondence set 1 (to characterize)
+        ctx2: Context from correspondence set 2 (to exclude)
+        
+    Returns:
+        Generalization that matches ctx1 but not ctx2, or None if not found
+    """
+    gen = Generalization()
+    found_distinction = False
+    
+    # Strategy 1: Check if left contexts are disjoint
+    if ctx1.left and not ctx1.left.intersection(ctx2.left):
+        if len(ctx1.left) == 1:
+            elem = next(iter(ctx1.left))
+            gen.left_phoneme = elem.phoneme
+            found_distinction = True
+        else:
+            feat = find_distinguishing_features(ctx1.left, ctx2.left)
+            if feat:
+                gen.left_features = feat
+                found_distinction = True
+    
+    # Strategy 2: Check if right contexts are disjoint
+    if not found_distinction and ctx1.right and not ctx1.right.intersection(ctx2.right):
+        if len(ctx1.right) == 1:
+            elem = next(iter(ctx1.right))
+            gen.right_phoneme = elem.phoneme
+            found_distinction = True
+        else:
+            feat = find_distinguishing_features(ctx1.right, ctx2.right)
+            if feat:
+                gen.right_features = feat
+                found_distinction = True
+    
+    # Strategy 3: Find unique elements in ctx1's left
+    if not found_distinction:
+        unique_left = ctx1.left - ctx2.left
+        if unique_left:
+            if len(unique_left) == 1:
+                elem = next(iter(unique_left))
+                gen.left_phoneme = elem.phoneme
+                found_distinction = True
+            else:
+                feat = find_distinguishing_features(unique_left, ctx2.left)
+                if feat:
+                    gen.left_features = feat
+                    found_distinction = True
+    
+    # Strategy 4: Find unique elements in ctx1's right
+    if not found_distinction:
+        unique_right = ctx1.right - ctx2.right
+        if unique_right:
+            if len(unique_right) == 1:
+                elem = next(iter(unique_right))
+                gen.right_phoneme = elem.phoneme
+                found_distinction = True
+            else:
+                feat = find_distinguishing_features(unique_right, ctx2.right)
+                if feat:
+                    gen.right_features = feat
+                    found_distinction = True
+    
+    # Strategy 5: Probabilistic features for right context
+    if not found_distinction:
+        feat = find_probabilistic_features(ctx1.right, ctx2.right)
+        if feat:
+            gen.right_features = feat
+            found_distinction = True
+    
+    # Strategy 6: Probabilistic features for left context
+    if not found_distinction:
+        feat = find_probabilistic_features(ctx1.left, ctx2.left)
+        if feat:
+            gen.left_features = feat
+            found_distinction = True
+    
+    if found_distinction:
+        return gen
+    return None
 
 
 def analyze_correspondence_sets(correspondence_sets: list[CorrespondenceSet],
@@ -485,16 +501,13 @@ def analyze_correspondence_sets(correspondence_sets: list[CorrespondenceSet],
             'pairwise': []
         }
     
-    # Extract contexts for each set
+    # Build Context for each set
     set_contexts = []
     for cs in relevant_sets:
-        contexts = []
-        for cog in cs.cognate_sets:
-            ctx = extract_context(cog, proto_lang)
-            contexts.append(ctx)
+        ctx = build_context_for_correspondence_set(cs, proto_lang)
         set_contexts.append({
             'set': cs,
-            'contexts': contexts,
+            'context': ctx,
             'pattern': {k: v for k, v in cs.pattern.phonemes.items() if v}
         })
     
@@ -505,14 +518,20 @@ def analyze_correspondence_sets(correspondence_sets: list[CorrespondenceSet],
             set1 = set_contexts[i]
             set2 = set_contexts[j]
             
+            ctx1 = set1['context']
+            ctx2 = set2['context']
+            
             # Try to find generalization for set1 vs set2
-            gen_1_vs_2 = find_minimal_generalization(
-                set1['contexts'], set2['contexts']
-            )
+            gen_1_vs_2 = find_minimal_generalization(ctx1, ctx2)
             # Also try the reverse
-            gen_2_vs_1 = find_minimal_generalization(
-                set2['contexts'], set1['contexts']
-            )
+            gen_2_vs_1 = find_minimal_generalization(ctx2, ctx1)
+            
+            # Format contexts for output
+            def format_context(ctx: Context) -> dict:
+                return {
+                    'left': [elem.phoneme for elem in ctx.left],
+                    'right': [elem.phoneme for elem in ctx.right]
+                }
             
             result = {
                 'set1_index': i,
@@ -521,8 +540,8 @@ def analyze_correspondence_sets(correspondence_sets: list[CorrespondenceSet],
                 'set2_pattern': set2['pattern'],
                 'set1_count': set1['set'].count,
                 'set2_count': set2['set'].count,
-                'set1_contexts': [(c.preceding, c.following) for c in set1['contexts']],
-                'set2_contexts': [(c.preceding, c.following) for c in set2['contexts']],
+                'set1_context': format_context(ctx1),
+                'set2_context': format_context(ctx2),
             }
             
             if gen_1_vs_2:
@@ -574,6 +593,8 @@ if __name__ == '__main__':
             print(f"Set {pair['set1_index']+1} (n={pair['set1_count']}) vs Set {pair['set2_index']+1} (n={pair['set2_count']})")
             print(f"  Set 1 pattern: {pair['set1_pattern']}")
             print(f"  Set 2 pattern: {pair['set2_pattern']}")
+            print(f"  Set 1 context: left={pair['set1_context']['left']}, right={pair['set1_context']['right']}")
+            print(f"  Set 2 context: left={pair['set2_context']['left']}, right={pair['set2_context']['right']}")
             if gen1:
                 print(f"  Set 1 distinguished: {gen1}")
             if gen2:
