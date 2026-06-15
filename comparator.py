@@ -560,7 +560,7 @@ def supporting():
     )
     filtered_total = int(c.fetchone()[0])
     c.execute(
-        "SELECT reflexes.refid, langnames.name, form, gloss, morph_index FROM reflexes JOIN reflex_of ON reflex_of.refid=reflexes.refid JOIN langnames on reflexes.langid=langnames.langid WHERE prefid=? LIMIT ? OFFSET ?",
+        "SELECT reflexes.refid, langnames.name, ipaform, gloss, morph_index FROM reflexes JOIN reflex_of ON reflex_of.refid=reflexes.refid JOIN langnames on reflexes.langid=langnames.langid WHERE prefid=? LIMIT ? OFFSET ?",
         (prefid, length, start),
     )
     supporting_forms = [
@@ -634,7 +634,7 @@ def add_supporting_form():
         "SELECT morph_index FROM reflex_of WHERE refid=? AND prefid=?", (refid, prefid)
     )
     morph_index = c.fetchone()[0]
-    c.execute("SELECT form FROM reflexes WHERE refid=?", (refid,))
+    c.execute("SELECT ipaform FROM reflexes WHERE refid=?", (refid,))
     form = c.fetchone()[0]
     morphs = enumerate(re.split(" |-", form))
     return render_template(
