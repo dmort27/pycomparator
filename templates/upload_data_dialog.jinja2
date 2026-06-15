@@ -1,0 +1,130 @@
+<div id="upload-data-dialog" title="Upload Language Data">
+  <form id="upload-data-form" enctype="multipart/form-data">
+    <div class="form-group">
+      <label for="upload-langname">Language Name:</label>
+      <input type="text" id="upload-langname" name="langname" required 
+             placeholder="e.g., Kachai" class="form-control" />
+    </div>
+    
+    <div class="form-group">
+      <label for="upload-protolang">Descendant of (select one or more):</label>
+      <select id="upload-protolang" name="protolang" multiple size="5" class="form-control">
+        {% for plang in protolanguages %}
+        <option value="{{ plang.langid }}">{{ plang.name }}</option>
+        {% endfor %}
+      </select>
+      <small class="form-help">Hold Ctrl/Cmd to select multiple proto-languages</small>
+    </div>
+    
+    <div class="form-group">
+      <label for="upload-file">Lexicon File (CSV or TSV):</label>
+      <input type="file" id="upload-file" name="file" accept=".csv,.tsv,.txt" required 
+             class="form-control" />
+      <small class="form-help">First column: gloss, Second column: form</small>
+    </div>
+    
+    <div id="upload-preview" style="display: none;">
+      <h4>Preview (first 10 entries):</h4>
+      <table id="preview-table" class="preview-table">
+        <thead>
+          <tr>
+            <th>Gloss</th>
+            <th>Original Form</th>
+            <th>Processed Form</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="preview-stats"></div>
+    </div>
+    
+    <div id="upload-error" class="error-message" style="display: none;"></div>
+    <div id="upload-progress" style="display: none;">
+      <div class="progress-bar">
+        <div class="progress-fill"></div>
+      </div>
+      <span class="progress-text">Uploading...</span>
+    </div>
+  </form>
+</div>
+
+<style>
+#upload-data-dialog .form-group {
+  margin-bottom: 15px;
+}
+
+#upload-data-dialog label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+#upload-data-dialog .form-control {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+#upload-data-dialog .form-help {
+  display: block;
+  color: #666;
+  font-size: 0.9em;
+  margin-top: 3px;
+}
+
+#upload-data-dialog .preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 0.9em;
+}
+
+#upload-data-dialog .preview-table th,
+#upload-data-dialog .preview-table td {
+  border: 1px solid #ddd;
+  padding: 6px;
+  text-align: left;
+}
+
+#upload-data-dialog .preview-table th {
+  background: #f5f5f5;
+}
+
+#upload-data-dialog .error-message {
+  color: #c00;
+  padding: 10px;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+#upload-data-dialog .progress-bar {
+  height: 20px;
+  background: #eee;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+#upload-data-dialog .progress-fill {
+  height: 100%;
+  background: #4caf50;
+  width: 0%;
+  transition: width 0.3s;
+}
+
+#upload-data-dialog .progress-text {
+  display: block;
+  text-align: center;
+  margin-top: 5px;
+}
+
+#preview-stats {
+  margin-top: 10px;
+  font-size: 0.9em;
+  color: #666;
+}
+</style>

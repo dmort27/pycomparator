@@ -998,3 +998,168 @@ def proto_phonemes():
         "plangid": plangid,
         "phonemes": result
     })
+
+
+##############################################################################
+# Data Upload
+##############################################################################
+
+
+@app.route("/upload_dialog")
+def upload_dialog():
+    """Render the upload data dialog with available proto-languages."""
+    c = get_db().cursor()
+    c.execute(
+        """SELECT DISTINCT langnames.langid, langnames.name
+           FROM langnames
+           JOIN descendant_of ON langnames.langid = descendant_of.plangid
+           ORDER BY langnames.name"""
+    )
+    protolanguages = [{"langid": row[0], "name": row[1]} for row in c.fetchall()]
+    return render_template("upload_data_dialog.jinja2", protolanguages=protolanguages)
+
+
+@app.route("/preview_upload", methods=["POST"])
+def preview_upload():
+    """
+    Preview the data to be uploaded.
+    
+    Parses the uploaded file and returns processed forms for preview.
+    """
+    from form_processor import detect_delimiter, parse_lexicon_file, process_form
+    
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
+    
+    try:
+        content = file.read().decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            file.seek(0)
+            content = file.read().decode("latin-1")
+        except Exception as e:
+            return jsonify({"error": f"Could not decode file: {e}"}), 400
+    
+    delimiter = detect_delimiter(content)
+    entries = parse_lexicon_file(content, delimiter)
+    
+    if not entries:
+        return jsonify({"error": "No valid entries found in file"}), 400
+    
+    # Process and preview first 10 entries
+    preview = []
+    for gloss, form in entries[:10]:
+        processed, original = process_form(form)
+        preview.append({
+            "gloss": gloss,
+            "original": original,
+            "processed": processed
+        })
+    
+    return jsonify({
+        "preview": preview,
+        "total_entries": len(entries),
+        "delimiter": "tab" if delimiter == "\t" else "comma"
+    })
+
+
+@app.route("/upload_data", methods=["POST"])
+def upload_data():
+    """
+    Upload language data to the database.
+    
+    Creates a new language entry and adds all lexical entries.
+    """
+    from form_processor import detect_delimiter, parse_lexicon_file, process_form
+    
+    langname = request.form.get("langname", "").strip()
+    protolang_ids = request.form.getlist("protolang")
+    
+    if not langname:
+        return jsonify({"error": "Language name is required"}), 400
+    
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
+    
+    try:
+        content = file.read().decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            file.seek(0)
+            content = file.read().decode("latin-1")
+        except Exception as e:
+            return jsonify({"error": f"Could not decode file: {e}"}), 400
+    
+    delimiter = detect_delimiter(content)
+    entries = parse_lexicon_file(content, delimiter)
+    
+    if not entries:
+        return jsonify({"error": "No valid entries found in file"}), 400
+    
+    conn = get_db()
+    c = conn.cursor()
+    
+    try:
+        # Check if language already exists
+        c.execute("SELECT langid FROM langnames WHERE name = ?", (langname,))
+        existing = c.fetchone()
+        
+        if existing:
+            langid = existing[0]
+        else:
+            # Add new language
+            c.execute("INSERT INTO langnames (name) VALUES (?)", (langname,))
+            langid = c.lastrowid
+        
+        # Add descendant_of relationships
+        for plangid in protolang_ids:
+            try:
+                plangid = int(plangid)
+                # Check if relationship already exists
+                c.execute(
+                    "SELECT id FROM descendant_of WHERE langid = ? AND plangid = ?",
+                    (langid, plangid)
+                )
+                if not c.fetchone():
+                    c.execute(
+                        "INSERT INTO descendant_of (langid, plangid) VALUES (?, ?)",
+                        (langid, plangid)
+                    )
+            except ValueError:
+                continue
+        
+        # Add lexical entries
+        added_count = 0
+        for gloss, form in entries:
+            processed_form, original_form = process_form(form)
+            
+            # Insert into reflexes table
+            # ipaform stores the processed form, form stores the original
+            c.execute(
+                """INSERT INTO reflexes (langid, sourceid, form, gloss, ipaform)
+                   VALUES (?, -1, ?, ?, ?)""",
+                (langid, original_form, gloss, processed_form)
+            )
+            added_count += 1
+        
+        conn.commit()
+        
+        return jsonify({
+            "success": True,
+            "langid": langid,
+            "langname": langname,
+            "entries_added": added_count,
+            "message": f"Successfully added {added_count} entries for {langname}"
+        })
+        
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": f"Database error: {e}"}), 500

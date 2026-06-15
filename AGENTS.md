@@ -93,5 +93,50 @@ The system normalizes transcriptions to canonical IPA using `ipa_normalize.py`:
 
 - [x] Learn optimal alpha from ground-truth cognate sets (reflex_of table) ✓ Done: alpha=0.4
 - [x] IPA normalization for consistent phonetic matching ✓ Done: ipaform column
+- [x] Data upload feature for importing lexicon files ✓ Done: June 2026
 - [ ] Optional: sentence-transformers for higher-quality semantic embeddings
 - [ ] Optional: FAISS index for sub-linear search if lexicon grows large
+
+## Data Upload Feature (June 2026)
+
+### Overview
+
+Allows users to upload lexicon data files (CSV/TSV) with automatic IPA normalization and syllabification.
+
+### Components
+
+- **form_processor.py**: Form processing module
+  - `process_form(form)`: Normalize IPA, remove existing hyphens, re-syllabify
+  - `parse_lexicon_file(content)`: Parse CSV/TSV with gloss and form columns
+  - `detect_delimiter(content)`: Auto-detect tab vs comma delimiter
+  - Uses `syllabiphon` for syllabification
+
+- **templates/upload_data_dialog.jinja2**: Upload dialog template
+  - Language name input
+  - Proto-language selection (multiple select)
+  - File input with preview support
+
+- **Flask routes in comparator.py**:
+  - `GET /upload_dialog`: Render upload dialog with proto-language options
+  - `POST /preview_upload`: Preview file processing (first 10 entries)
+  - `POST /upload_data`: Full upload with database insertion
+
+- **JavaScript handlers in comparator.js**:
+  - Upload dialog with Preview/Upload/Cancel buttons
+  - File preview showing original vs processed forms
+  - Progress indicator during upload
+  - Auto-reload reflexes table after successful upload
+
+### Usage
+
+1. Click "Upload Data" button in toolbar
+2. Enter language name
+3. Select parent proto-language(s)
+4. Choose CSV/TSV file (gloss in col 1, form in col 2)
+5. Click "Preview" to verify processing
+6. Click "Upload" to insert into database
+
+### Test Data
+
+- `data/khunggoi.tsv`: 430 entries (uploaded as langid=70)
+- `data/phadang.tsv`: 399 entries (uploaded as langid=71)

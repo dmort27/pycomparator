@@ -1245,5 +1245,177 @@ $(document).ready(function () {
       });
     }
     
+    //////////////////////////////////////////
+    // Upload Data Dialog
+    //////////////////////////////////////////
+    
+    $('#upload-data-btn').click(function() {
+      $.ajax({
+        url: '/upload_dialog',
+        dataType: 'html',
+        success: function(html) {
+          $('#dialogs').append(html);
+          
+          var dialog = $('#upload-data-dialog').dialog({
+            title: 'Upload Language Data',
+            width: 600,
+            height: 550,
+            modal: true,
+            buttons: [
+              {
+                text: 'Preview',
+                click: previewUpload
+              },
+              {
+                text: 'Upload',
+                click: submitUpload,
+                disabled: true,
+                class: 'upload-submit-btn'
+              },
+              {
+                text: 'Cancel',
+                click: function() {
+                  $(this).dialog('close');
+                }
+              }
+            ],
+            close: function() {
+              $(this).dialog('destroy').remove();
+            }
+          });
+          
+          // File change triggers preview
+          $('#upload-file').on('change', function() {
+            // Reset preview
+            $('#upload-preview').hide();
+            $('#upload-error').hide();
+            $('.upload-submit-btn').button('disable');
+          });
+        }
+      });
+    });
+    
+    function previewUpload() {
+      var fileInput = $('#upload-file')[0];
+      if (!fileInput.files || !fileInput.files[0]) {
+        $('#upload-error').text('Please select a file first.').show();
+        return;
+      }
+      
+      var formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+      
+      $('#upload-error').hide();
+      $('#upload-progress').show();
+      $('.progress-text').text('Processing preview...');
+      
+      $.ajax({
+        url: '/preview_upload',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(data) {
+          $('#upload-progress').hide();
+          
+          if (data.error) {
+            $('#upload-error').text(data.error).show();
+            return;
+          }
+          
+          // Populate preview table
+          var tbody = $('#preview-table tbody');
+          tbody.empty();
+          data.preview.forEach(function(entry) {
+            var row = $('<tr>');
+            row.append($('<td>').text(entry.gloss));
+            row.append($('<td>').text(entry.original));
+            row.append($('<td>').text(entry.processed));
+            tbody.append(row);
+          });
+          
+          $('#preview-stats').text(
+            'Total entries: ' + data.total_entries + 
+            ' | Format: ' + data.delimiter.toUpperCase()
+          );
+          $('#upload-preview').show();
+          
+          // Enable upload button
+          $('.upload-submit-btn').button('enable');
+        },
+        error: function(xhr) {
+          $('#upload-progress').hide();
+          var msg = 'Error processing file';
+          try {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.error) msg = resp.error;
+          } catch (e) {}
+          $('#upload-error').text(msg).show();
+        }
+      });
+    }
+    
+    function submitUpload() {
+      var langname = $('#upload-langname').val().trim();
+      if (!langname) {
+        $('#upload-error').text('Please enter a language name.').show();
+        return;
+      }
+      
+      var fileInput = $('#upload-file')[0];
+      if (!fileInput.files || !fileInput.files[0]) {
+        $('#upload-error').text('Please select a file.').show();
+        return;
+      }
+      
+      var formData = new FormData();
+      formData.append('langname', langname);
+      formData.append('file', fileInput.files[0]);
+      
+      // Add selected proto-languages
+      $('#upload-protolang option:selected').each(function() {
+        formData.append('protolang', $(this).val());
+      });
+      
+      $('#upload-error').hide();
+      $('#upload-progress').show();
+      $('.progress-fill').css('width', '50%');
+      $('.progress-text').text('Uploading...');
+      
+      $.ajax({
+        url: '/upload_data',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(data) {
+          $('.progress-fill').css('width', '100%');
+          
+          if (data.error) {
+            $('#upload-progress').hide();
+            $('#upload-error').text(data.error).show();
+            return;
+          }
+          
+          $('.progress-text').text(data.message);
+          
+          // Reload reflexes table after short delay
+          setTimeout(function() {
+            reflexes.ajax.reload();
+            $('#upload-data-dialog').dialog('close');
+          }, 1500);
+        },
+        error: function(xhr) {
+          $('#upload-progress').hide();
+          var msg = 'Error uploading data';
+          try {
+            var resp = JSON.parse(xhr.responseText);
+            if (resp.error) msg = resp.error;
+          } catch (e) {}
+          $('#upload-error').text(msg).show();
+        }
+      });
+    }
+    
   });
   
