@@ -1,11 +1,11 @@
-fire	mei
+fire	mej
 water	de-ru
 earth	m̩-la
 air	məsi
 sky	kədʑiŋ-m̩-la
 cloud	mo-dʑa
 fog	mo-dʑa-tʰae
-smoke	mei-kʰu
+smoke	mej-kʰu
 sun	kə-dʑiŋ
 moon	kaŋ
 star	mə-rik
@@ -14,7 +14,7 @@ thunder	kə-dʑiŋ-kuŋ-je
 rain	kə-dʑiŋ-ru-je
 rainbow	mo-dʑa-se-ŋe-to-ri-je
 mountain	pʰo-ra
-plain	tɕu-hei
+plain	t͡ɕu-hej
 river	koŋ
 jungle	ru-ni-ta-ruŋ
 stone	nuŋ-ko
@@ -25,14 +25,14 @@ iron	mə-ru
 brass	sən-ni
 copper	sən-ni
 day	ro-t͡ɕu
-night	tɕu-ma-ting
+night	t͡ɕu-ma-ting
 year	kum kʰət
 month	kəd-ʑiŋ kʰət
 light	he-ru-je
 darkness	t͡ɕa-ma-tiŋ-je
 god	kuŋ-jo
 demon	kuŋ-jo
-man	kəhai-re
+man	kəhaj-re
 woman	əpʰae-nau
 boy	aŋen-nau
 girl	nɨpu-ni
@@ -45,13 +45,13 @@ father	əvi
 mother	əwu
 brother (elder)	əma
 brother (younger)	ɨ-ka
-sister (elder)	i-dʑoi-do
-sister (younger)	ɨ-tɕa-do
+sister (elder)	i-dʑoj-do
+sister (younger)	ɨ-t͡ɕa-do
 son	i-ni-au-pa
 daughter	i-ni-au-nu
-elephant	sa-kutaie
+elephant	sa-kutaje
 rhinoceros	si-pa
-buffalo	sɨ-loi
+buffalo	sɨ-loj
 methin	sit-dʑəŋ
 cow	sɨmuk
 horse	sɨgol
@@ -59,7 +59,7 @@ goat	me-krek
 tiger	sa-kʰu
 bear	su-woŋ
 leopard	ku-ne
-monkey	nai-joŋ
+monkey	naj-joŋ
 hog	huk
 dog	hu
 cat	lami
@@ -72,62 +72,62 @@ crow	kuŋ-kʰa
 hen	ha
 toucan	ha-ta
 fish	kʰi
-lizard	tɕitaŋ
+lizard	t͡ɕitaŋ
 crab	kə-rau
 snake	pʰu-ru
 centipede	ku-pa
 earthworm	m̩laru
-caterpilar	ku-pai
+caterpilar	ku-paj
 butterfly	ku-pa
-fly	ha-tɕeŋ
-mosquito	hə-tɕɨk
+fly	ha-t͡ɕeŋ
+mosquito	hə-t͡ɕɨk
 beetle	ku-ma
 ant	ar-ziŋ
-white ant	lei-pum-pe
+white ant	lej-pum-pe
 head	əkau
 body	əsa
 leg	əkoŋ
 arm	əkʰut
-face	əmai
+face	əmaj
 neck	əli
 back	əna
 belly	əpuk
 shoulder	əreŋ
 hip	kəsuŋ
 chest	ətʰa
-waist	kəsaie
+waist	kəsaje
 eye	əmit
 ear	kəna
 mouth	kəmo
 nose	kəru
 lip	kəmo
-cheek	əsaie
+cheek	əsaje
 chin	əkʰa
 tooth	əha
 hair	əko-sa
 beard	kəmoha
 mustache	kəmoha
-navel	əkoi
+navel	əkoj
 elbow	ənɨm
 wrist	əseŋ
 hand	əkʰut
 finger	əpeŋ
 nail	kʰut-əha
-thigh	əpʰaie
-knee	kʰu-dʑeŋ
-calf	kʰu-asaie
+thigh	əpʰaje
+knee	kʰu-d͡ʑeŋ
+calf	kʰu-asaje
 ankle	əkʰumit
 foot	əkoŋ
 skin	əha
 bone	əru
 blood	məsi
-horn	ətɕi
+horn	ət͡ɕi
 wing	əha
 feather	əha
-tail	kəmai
-footprint	əkʰo-tɕʰauna
+tail	kəmaj
+footprint	əkʰo-t͡ɕʰauna
 hoof	əkoŋ
-hind-leg	əpʰai-kʰu-duŋ
+hind-leg	əpʰaj-kʰu-duŋ
 fore-leg	kəm-ma
 tree	tʰiŋ
 root	tʰiŋ-əru
@@ -137,7 +137,7 @@ fruit	ətʰa
 flower	əroŋ
 bud	əpom-habe
 creeper	ku-ru
-mango	tʰaie-nau
+mango	tʰaje-nau
 plantain	nahari
 plantain	mota
 jack	nahari
@@ -147,15 +147,15 @@ cane	sənna-ru
 cotton	pat
 paddy	məpʰau
 rice	shi-oŋ
-cucumber	tʰai-dʑuta
+cucumber	tʰaj-d͡ʑuta
 pumpkin	soŋ
-pumpkin	ha-tɕeŋha
-bengan	kaŋ-dʑota
+pumpkin	ha-t͡ɕeŋha
+bengan	kaŋ-d͡ʑota
 indian corn	gum-ata
 yam	pisa-hul
 pulse	tʰa
 capsicum	kəsətʰa
-tobacco	mei-kʰri
+tobacco	mej-kʰri
 pan	pana
 beetel nut	koa
 turmeric	əha
@@ -165,44 +165,44 @@ grass	kap-hiŋ
 bark	tʰiŋ-kʰo
 husk of rice	poha
 juice	həru
-sap	nai-nəp
+sap	naj-nəp
 cultivation	lau
 flesh	sit
 fat	ətʰa
 oil	ətʰa
-salt	mətɕi
+salt	mət͡ɕi
 milk	soŋ
 shrab	ru
-shrab	dʑu
+shrab	d͡ʑu
 boiled meat	həmi kəhaŋ
 roast meat	həmi-sa
 gravy	nəru
 cooked rice	sila
-cooked rice	tɕak
+cooked rice	t͡ɕak
 eating vessel	koŋ
 drinking vessel	məru-ha
-ladle	kʰavaie
+ladle	kʰavaje
 ivory	moha
-wax, bee	kʰoi-lu
+wax, bee	kʰoj-lu
 village	kʰul
 house	siŋ
 door	siŋa
 window	siŋa
 mat	pʰək
 basket	luk
-bag	kədʑol-si
-cloth	kədʑol
-spear	kətɕaie
+bag	kəd͡ʑol-si
+cloth	kəd͡ʑol
+spear	kət͡ɕaje
 dao	kʰi
-dao	tɕem
+dao	t͡ɕem
 knife	kʰenau
-knife	tɕʰemnau
-bow	kətɕet
+knife	t͡ɕʰemnau
+bow	kət͡ɕet
 bow	gopiro
 arrow	məle
-shield	tɕuŋ
+shield	t͡ɕuŋ
 panjee	kəsau
-musket	pomai
+musket	pomaj
 poison	kʰu-ru
 boat	məsi
 coffin	kəsi-pek
@@ -219,11 +219,11 @@ five	pʰəŋa
 six	tʰəruk
 six	təruk
 seven	səni
-seven	tɕini
-eight	tɕatɕet
-eight	tɕisat
-nine	tɕako
-nine	tɕako
+seven	t͡ɕini
+ejght	t͡ɕat͡ɕet
+ejght	t͡ɕisat
+nine	t͡ɕako
+nine	t͡ɕako
 ten	tʰəra
 ten	tʰəra
 eleven	tʰəre əmakuk
@@ -235,9 +235,9 @@ forty	taŋ-məli
 fifty	taŋ-pʰəŋa
 sixty	taŋ-təruk
 seventy	taŋ-səni
-eight	taŋ-tɕətɕet
-ninety	taŋ-tɕəko
-one hundred	sege
+ejght	taŋ-t͡ɕət͡ɕet
+ninety	taŋ-t͡ɕəko
+one hundred	seɡe
 one thousand	tʰiŋ-kʰet
 whole	əpum
 half	ki-he
@@ -252,35 +252,35 @@ thine	nətuŋ-ve
 his/hers/it's	kəta-si
 ours	i-to-re-ve
 yours	nə-to-re-ve
-theirs	kə-ta-si-ve
+thejrs	kə-ta-si-ve
 all	hir-gi-hi
 north	ro-hoŋ
 south	əri-hoŋ
 east	əmar-hoŋ
-west	ardʑu-hoŋ
+west	ard͡ʑu-hoŋ
 right	əha
 left	əhu
 far	əre-so
 near	əso-jeŋ
 long	əseŋ-e
-short	sunai-e
-high	hu-lai
+short	sunaj-e
+high	hu-laj
 low	hu-li-je
-much	tɕau-nai
+much	t͡ɕau-naj
 liettle	suna-gi-je
-great	kəma-tɕau-je
+great	kəma-t͡ɕau-je
 small	kədo-nau-je
 good	təka-pʰene
 bad	map-hemne
-broad	kəvai-e
+broad	kəvaj-e
 narrow	kəvim-ne
 straight	məsoŋ-je
 crooked	kəma-ko-i-ne
-round	tuk-ma-koi-je-ba
+round	tuk-ma-koj-je-ba
 square	kəma-ki-je-ba
 old	kəse-ret
 young	an-gen-gau
-old	kam-hoi
+old	kam-hoj
 new	kətʰa
 ripe	kəmu-ne
 raw	kəriŋ-ne
@@ -288,35 +288,35 @@ sweet	ətʰo-je
 bitter	əkʰa-e
 hot	sa-e
 cold	əsik-je
-handsome	pʰərai-e
-ugly	əha-tɕʰau-nai
+handsome	pʰəraj-e
+ugly	əha-t͡ɕʰau-naj
 fat	ta-kə-si-ne
 lean	əha-ta-to-i
-thick	tʰənai
+thick	tʰənaj
 thin	pətiŋ-je
 heavy	rik-je
 light	məpa-tiŋ-je
 hard	praŋ-e
 soft	kəma-nau-ne
 sharp	morok-si-ne
-blunt	tei-soi-ne-ba
+blunt	tej-soj-ne-ba
 dear	əjoŋ-ma-wa-mene
-cheap	əjoŋ-waŋ-laie
+cheap	əjoŋ-waŋ-laje
 difficult	kəte-ʃike
-easy	tɕine-ba
+easy	t͡ɕine-ba
 clean	ta-ka-pʰi-ne-ba
 dirty	kamri-ne-ba
 smooth	ta-na-ho
-rough	tənai
+rough	tənaj
 weak	səru-e-ba
 early	to-pin-to
 late	so-reŋ-ho
 wise	se-ka-siŋ-ne-ba
 foolish	sa-ka
 merry	ko-laŋ-je
-grave	mədʑa-huk-je
-blind	əmit-tɕʰan-je
-lame	əpʰei-kəsik-le
+grave	məd͡ʑa-huk-je
+blind	əmit-t͡ɕʰan-je
+lame	əpʰej-kəsik-le
 deaf	kəna-su-kok-pa
 dumb	ku-mo-so-je
 black	i-pa
@@ -334,15 +334,15 @@ drink	suk-lo
 sleep	bie-to-lo
 wake	tʰau-lo-wa
 laugh	ha-kal-lo
-weep	tɕut-lo
+weep	t͡ɕut-lo
 speak	heŋ-lo
 hear	məne-lo
 know	to-lo
 sing	le-se-lo
-dance	məhoi-se
-walk	tɕu-lo-ko
+dance	məhoj-se
+walk	t͡ɕu-lo-ko
 run	preŋ-lo
-fall	lei-ti-lo
+fall	lej-ti-lo
 stand	məliŋ-lo
 sit	paŋ-lo
 want (to)	po-lo
@@ -364,8 +364,8 @@ kill	pʰe-to-lo
 bury	phumo
 burn	kal-lo
 love	muŋ-sa-lo
-hate	lei-tɕuŋ-lo
-fear	tɕi-lo
+hate	lej-t͡ɕuŋ-lo
+fear	t͡ɕi-lo
 be angry	mənuŋ-kaŋ-lo
 quarrel	ku-la-lo
 steal	mə-hu-lo
@@ -377,7 +377,7 @@ come	wa-lo
 arrive	suŋ-lo
 jump	po-wa-lo
 fly	pre-wa-ma
-sneeze	krok-tɕhau-lo
+sneeze	krok-t͡ɕhau-lo
 snore	map-hi-lo
 belch	tha-ke-ko
 cough	krok-ko-li-ho
@@ -388,17 +388,17 @@ ask	heng-lo
 bind	tre-lo
 loosen	tru-lo
 smell	nəŋ-mo
-I go	i-tɕhu-le
+I go	i-t͡ɕhu-le
 I went	i re rue
 I will go	i re ge ba
 I go not	i ma re mne
 I will not go	i ma tuŋ ma ro-je
 I wish to go	i re a niŋ-e
 I can go	i re a jau waŋ-e
-I may go	i tɕhut phiri-je
-let us go	tɕhut se
+I may go	i t͡ɕhut phiri-je
+let us go	t͡ɕhut se
 go thou	na re to ma
-do not go	ma tɕhut lero ba
+do not go	ma t͡ɕhut lero ba
 give me	i le ko mi-lo
 come here	hi le de mo
 be silent	kə su lo
@@ -407,16 +407,16 @@ no	məke
 why	ki kəlo
 how	ke te taŋe
 how much?	kija ke no
-how large?	kija ke kum tɕhau kəlo
+how large?	kija ke kum t͡ɕhau kəlo
 how high?	kija ke seŋ kəlo
 how deep?	kija ke tak pi kəlo
 how far?	kija ke seŋ kəlo
 how was it?	kəte kəlo
 how are you?	kəte paŋ kəlo
 thus	kəte kəlo
-there	tɕi-li
+there	t͡ɕi-li
 where	kəli kal-lo
-now	ro-tɕu
+now	ro-t͡ɕ,u
 then	kuŋ-ka-thəle
 when	əken-sa
 today	əto-hi
@@ -424,7 +424,7 @@ tomorrow	səna-tol
 to	da
 from	da-gi
 within	kəthuk
-without	koŋ-jaŋ
+without	koŋ-,jaŋ
 between	ki-ruk
 above	əduŋ
 below	əpaŋ

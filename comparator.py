@@ -111,9 +111,9 @@ def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: flo
         langids=langids,
     )
     
-    # Build refid -> (langid, form, gloss) lookup
+    # Build refid -> (langid, ipaform, gloss) lookup
     c = get_db().cursor()
-    c.execute("SELECT refid, langid, form, gloss FROM reflexes")
+    c.execute("SELECT refid, langid, ipaform, gloss FROM reflexes")
     reflex_data = {r[0]: (r[1], r[2], r[3]) for r in c.fetchall()}
     
     # Clear and populate potcogs table
@@ -121,11 +121,11 @@ def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: flo
     results = []
     for refid, dist in similar:
         if refid in reflex_data:
-            langid2, form2, gloss2 = reflex_data[refid]
-            results.append([refid, langid2, form2, gloss2, dist])
+            langid2, ipaform2, gloss2 = reflex_data[refid]
+            results.append([refid, langid2, ipaform2, gloss2, dist])
     
     c.executemany(
-        "INSERT INTO potcogs (refid, langid, form, gloss, sim) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO potcogs (refid, langid, ipaform, gloss, sim) VALUES (?, ?, ?, ?, ?)",
         results,
     )
     get_db().commit()
@@ -253,7 +253,7 @@ def reflexes():
 @app.route("/potcogs", methods=["GET", "POST"])
 def potcogs():
     # All data for potcogs should take this shape:
-    cols = ["potcogs.langid", "refid", "lname", "form", "gloss", "sim"]
+    cols = ["potcogs.langid", "refid", "lname", "ipaform", "gloss", "sim"]
     # limit parameters
     start = request.args.get("start", 0, type=int)
     length = request.args.get("length", 0, type=int)
@@ -272,7 +272,7 @@ def potcogs():
     # Build search conditions with regex support
     params = []
     lang_cond = build_search_condition("langnames.name", lang_search, params)
-    form_cond = build_search_condition("form", form_search, params)
+    form_cond = build_search_condition("ipaform", form_search, params)
     gloss_cond = build_search_condition("gloss", gloss_search, params)
     where_clause = f"WHERE {lang_cond} AND {form_cond} AND {gloss_cond}"
     
@@ -282,7 +282,7 @@ def potcogs():
     c.execute("""CREATE TABLE IF NOT EXISTS "potcogs" (
          "langid" integer NOT NULL,
          "refid" integer NOT NULL PRIMARY KEY,
-         "form" text NOT NULL,
+         "ipaform" text NOT NULL,
          "gloss" text,
          "sim" real NOT NULL)""")
     get_db().commit()
@@ -299,7 +299,7 @@ def potcogs():
     # Build params again for the main query (need lname alias)
     params2 = []
     lang_cond2 = build_search_condition("lname", lang_search, params2)
-    form_cond2 = build_search_condition("form", form_search, params2)
+    form_cond2 = build_search_condition("ipaform", form_search, params2)
     gloss_cond2 = build_search_condition("gloss", gloss_search, params2)
     where_clause2 = f"WHERE {lang_cond2} AND {form_cond2} AND {gloss_cond2}"
     
@@ -308,7 +308,7 @@ def potcogs():
                 potcogs.langid,
                 refid,
                 langnames.name AS lname,
-                form,
+                ipaform,
                 gloss,
                 sim
             FROM potcogs JOIN langnames ON langnames.langid=potcogs.langid
