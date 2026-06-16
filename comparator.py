@@ -151,6 +151,59 @@ def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: flo
     get_db().commit()
 
 
+def find_potential_reconstructions(ipaform1: str, gloss1: str, alpha: float) -> None:
+    """
+    Find potential reconstructions (protoforms) using pre-computed embeddings.
+    
+    Args:
+        ipaform1: Normalized IPA form to match (without tones)
+        gloss1: Gloss to match
+        alpha: Weight for phonetic vs semantic (higher = more phonetic)
+    """
+    # Update embedder alpha if different
+    embedder.alpha = alpha
+    
+    # Find similar items using embeddings (fast!)
+    similar = embedder.find_similar(
+        query_form=ipaform1,
+        query_gloss=gloss1,
+        exclude_langid=None,  # Don't exclude any language
+        langids=langids,
+    )
+    
+    # Build refid -> (langid, ipaform, gloss) lookup
+    c = get_db().cursor()
+    c.execute("SELECT refid, langid, ipaform, gloss FROM reflexes")
+    reflex_data = {r[0]: (r[1], r[2], r[3]) for r in c.fetchall()}
+    
+    # Get the set of proto-language IDs (languages that have descendants)
+    c.execute("SELECT DISTINCT plangid FROM descendant_of")
+    proto_langids = {r[0] for r in c.fetchall()}
+    
+    # Ensure potrecons table exists and clear it
+    c.execute("""CREATE TABLE IF NOT EXISTS "potrecons" (
+         "langid" integer NOT NULL,
+         "refid" integer NOT NULL PRIMARY KEY,
+         "ipaform" text NOT NULL,
+         "gloss" text,
+         "sim" real NOT NULL)""")
+    c.execute("DELETE FROM potrecons")
+    
+    results = []
+    for refid, dist in similar:
+        if refid in reflex_data:
+            langid2, ipaform2, gloss2 = reflex_data[refid]
+            # Only include protoforms (reflexes whose language is a proto-language)
+            if langid2 in proto_langids:
+                results.append([refid, langid2, ipaform2, gloss2, dist])
+    
+    c.executemany(
+        "INSERT INTO potrecons (refid, langid, ipaform, gloss, sim) VALUES (?, ?, ?, ?, ?)",
+        results,
+    )
+    get_db().commit()
+
+
 ##############################################################################
 # Utility functions for presenting parsed forms
 ##############################################################################
@@ -351,6 +404,7 @@ def potcogs():
 @app.route("/protoforms")
 def protoforms():
     # Columns: ID (refid), PLID (plangid), Proto-Language (lname), Form (ipaform), Gloss
+    # When potrecons=true, add sim column at end
     cols = ["refid", "plangid", "lname", "ipaform", "gloss"]
     # limit parameters
     start = request.args.get("start", 0, type=int)
@@ -358,16 +412,18 @@ def protoforms():
     draw = request.args.get("draw", 0, type=int)
     # Filter by refids (comma-separated list of reflex ids to find their protoforms)
     refids_param = request.args.get("refids", "", type=str)
+    # Filter by potential reconstructions (from potrecons table)
+    potrecons = request.args.get("potrecons", "false", type=str).lower() == "true"
     # Search strings for language, form, and gloss
     lang_search = request.args.get("columns[2][search][value]", "", type=str)
     form_search = request.args.get("columns[3][search][value]", "", type=str)
     gloss_search = request.args.get("columns[4][search][value]", "", type=str)
     # Order
-    order = cols[request.args.get("order[0][column]", 0, type=int)]
+    order_col = request.args.get("order[0][column]", 0, type=int)
     direction = request.args.get("order[0][dir]", "asc", type=str)
     if direction not in ["asc", "desc"]:
         direction = "asc"
-    ordering_term = "{} {}".format(order, direction)
+    
     c = get_db().cursor()
     
     # Build search conditions with regex support
@@ -382,8 +438,49 @@ def protoforms():
     form_cond2 = build_search_condition("ipaform", form_search, params2)
     gloss_cond2 = build_search_condition("gloss", gloss_search, params2)
     
+    # If showing potential reconstructions from potrecons table
+    if potrecons:
+        # Ensure potrecons table exists
+        c.execute("""CREATE TABLE IF NOT EXISTS "potrecons" (
+             "langid" integer NOT NULL,
+             "refid" integer NOT NULL PRIMARY KEY,
+             "ipaform" text NOT NULL,
+             "gloss" text,
+             "sim" real NOT NULL)""")
+        
+        # For potrecons, default order by sim (similarity score)
+        if order_col == 0:
+            ordering_term = "sim asc"  # Lower is better
+        else:
+            order = cols[order_col] if order_col < len(cols) else "sim"
+            ordering_term = f"{order} {direction}"
+        
+        c.execute("SELECT COUNT(*) FROM potrecons")
+        total = int(c.fetchone()[0])
+        
+        c.execute(
+            f"""SELECT COUNT(*) FROM potrecons
+                JOIN langnames ON langnames.langid=potrecons.langid
+                WHERE {lang_cond} AND {form_cond} AND {gloss_cond}""",
+            params,
+        )
+        filtered_total = int(c.fetchone()[0])
+        
+        c.execute(
+            f"""SELECT potrecons.refid, potrecons.langid, langnames.name AS lname, 
+                       potrecons.ipaform, potrecons.gloss, potrecons.sim
+                FROM potrecons
+                JOIN langnames ON langnames.langid=potrecons.langid
+                WHERE {lang_cond2} AND {form_cond2} AND {gloss_cond2}
+                ORDER BY {ordering_term}
+                LIMIT ? OFFSET ?""",
+            params2 + [length, start],
+        )
     # If filtering by refids, find protoforms associated with those reflexes
-    if refids_param:
+    elif refids_param:
+        order = cols[order_col] if order_col < len(cols) else cols[0]
+        ordering_term = f"{order} {direction}"
+        
         refids = [int(r) for r in refids_param.split(",") if r.strip().isdigit()]
         if not refids:
             return jsonify({"draw": draw, "recordsTotal": 0, "recordsFiltered": 0, "data": []})
@@ -434,6 +531,9 @@ def protoforms():
         )
     else:
         # Original behavior: show all protoforms
+        order = cols[order_col] if order_col < len(cols) else cols[0]
+        ordering_term = f"{order} {direction}"
+        
         c.execute(
             "SELECT COUNT(*) FROM (SELECT DISTINCT refid FROM reflexes "
             "INNER JOIN descendant_of ON reflexes.langid=plangid)"
@@ -747,6 +847,20 @@ def find_pot_cogs():
     alpha = request.args.get("alpha", 0.4, type=float)  # 0=semantic only, 1=phonetic only (optimal: 0.4)
     find_potential_cognates(langid, ipaform, gloss, alpha)
     return jsonify({"success": "Reflexes successfully ranked"})
+
+
+##############################################################################
+# Find potential reconstructions (protoforms)
+##############################################################################
+
+
+@app.route("/findpotrecons")
+def find_pot_recons():
+    ipaform = request.args.get("ipaform", "", type=str)
+    gloss = request.args.get("gloss", "", type=str)
+    alpha = request.args.get("alpha", 0.4, type=float)  # 0=semantic only, 1=phonetic only (optimal: 0.4)
+    find_potential_reconstructions(ipaform, gloss, alpha)
+    return jsonify({"success": "Reconstructions successfully ranked"})
 
 
 ##############################################################################

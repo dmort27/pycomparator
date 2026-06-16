@@ -271,6 +271,36 @@ $(document).ready(function () {
   }
 
   //////////////////////////////////////////
+  // Find Potential Reconstructions
+  //////////////////////////////////////////
+
+  function findPotRecons() {
+    var selection = reflexes.rows({
+      selected: true
+    }).data();
+    if (selection.length === 0) {
+      alert('Please select a reflex first.');
+      return;
+    }
+    // Data columns: [0]=langid, [1]=refid, [2]=lname, [3]=ipaform, [4]=gloss, [5]=is_supporting, [6]=form
+    console.log('Searching for reconstructions: ' + selection[0][3] + ' (IPA) with gloss ' + selection[0][4]);
+    $.ajax({
+      url: '/findpotrecons',
+      data: {
+        ipaform: selection[0][3],  // Use normalized IPA form for similarity
+        gloss: selection[0][4],
+      },
+      dataType: 'json',
+      success: function() {
+        // Switch protoforms table to potrecons mode and reload
+        protoformsPotreconsMode = true;
+        protoformsRefidsFilter = '';
+        protoforms.ajax.reload();
+      }
+    });
+  }
+
+  //////////////////////////////////////////
   // Delete reflexes
   //////////////////////////////////////////
 
@@ -595,6 +625,8 @@ $(document).ready(function () {
 
   // Store refids filter for protoforms table (empty = show all)
   var protoformsRefidsFilter = '';
+  // Store potrecons mode for protoforms table (false = normal, true = show potential reconstructions)
+  var protoformsPotreconsMode = false;
 
   var protoforms = $('#protoforms').DataTable({
     dom: 'Brtip',
@@ -623,6 +655,7 @@ $(document).ready(function () {
       type: "GET",
       data: function(d) {
         d.refids = protoformsRefidsFilter;
+        d.potrecons = protoformsPotreconsMode;
       }
     },
     buttons: [
@@ -642,6 +675,7 @@ $(document).ready(function () {
         text: 'Show All',
         action: function() {
           protoformsRefidsFilter = '';
+          protoformsPotreconsMode = false;
           protoforms.ajax.reload();
         }
       }
@@ -683,6 +717,10 @@ $(document).ready(function () {
           action: findPotCogs
         },
         {
+          text: 'Potential Reconstructions',
+          action: findPotRecons
+        },
+        {
           text: 'Protoforms',
           action: function() {
             // Get selected reflex ids and filter protoforms table
@@ -694,6 +732,7 @@ $(document).ready(function () {
             // data[1] is refid
             var refids = selection.map(function(row) { return row[1]; });
             protoformsRefidsFilter = refids.join(',');
+            protoformsPotreconsMode = false;
             protoforms.ajax.reload();
           }
         }
