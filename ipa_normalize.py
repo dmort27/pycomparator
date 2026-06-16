@@ -108,7 +108,6 @@ AFFRICATES = [
 # Order matters: longer sequences first
 DIGRAPHS = [
     ("ng", "ŋ"),
-    ("ny", "ɲ"),
 ]
 
 # Single character mappings
@@ -269,6 +268,11 @@ def convert_double_vowels(text: str) -> str:
     return "".join(result)
 
 
+def convert_g(text: str) -> str:
+    """Convert /g/ to IPA /ɡ/."""
+    return text.replace("g", "ɡ")
+
+
 def is_consonant(char: str) -> bool:
     """Check if a character is a consonant based on panphon syllabic feature.
 
@@ -351,7 +355,7 @@ def normalize_to_ipa(form: str) -> str:
     result = add_affricate_ties(result)  # 7. Affricate ties
     result = convert_aspiration(result)  # 8. h → ʰ after plosives/affricates
     result = convert_y_to_j(result)  # 9. y → j
-
+    result = convert_g(result)  # 10. g → ɡ
     return result
 
 

@@ -85,8 +85,7 @@ $(document).ready(function () {
           context: {
             refid: refid,
             prefid: prefid,
-            plangid: plangid,
-            morph_index: 0
+            plangid: plangid
           }
         });
       }
@@ -126,8 +125,7 @@ $(document).ready(function () {
           context: {
             refid: refid,
             prefid: prefid,
-            plangid: plangid,
-            morph_index: 0
+            plangid: plangid
           }
         });
       }
@@ -518,7 +516,10 @@ $(document).ready(function () {
     var dialog = $('#supporting' + refid);
     var morphsContainer = $('#morphs-container-' + refid);
     
-    dialog.data('morph_index', this.morph_index);
+    // Get morph_index from the selected morph in the rendered template
+    var selectedMorph = morphsContainer.find('.selected-morph');
+    var morph_index = selectedMorph.length ? parseInt(selectedMorph.data('index')) : 0;
+    dialog.data('morph_index', morph_index);
     
     // Setup morph click handlers
     function setupMorphClickHandlers() {
