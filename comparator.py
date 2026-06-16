@@ -90,7 +90,7 @@ def close_connection(exception):
 ##############################################################################
 
 
-def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: float) -> None:
+def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: float, subgroup_bonus: float = 0.5) -> None:
     """
     Find potential cognates using pre-computed embeddings.
     
@@ -99,6 +99,7 @@ def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: flo
         ipaform1: Normalized IPA form to match (without tones)
         gloss1: Gloss to match
         alpha: Weight for phonetic vs semantic (higher = more phonetic)
+        subgroup_bonus: Multiplier for same-subgroup matches (0.5 = 50% distance reduction)
     """
     # Update embedder alpha if different
     embedder.alpha = alpha
@@ -116,6 +117,11 @@ def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: flo
     c.execute("SELECT refid, langid, ipaform, gloss FROM reflexes")
     reflex_data = {r[0]: (r[1], r[2], r[3]) for r in c.fetchall()}
     
+    # Build langid -> langsubgrp lookup for subgroup priority
+    c.execute("SELECT langid, langsubgrp FROM langnames")
+    lang_subgroups = {r[0]: r[1] for r in c.fetchall()}
+    source_subgroup = lang_subgroups.get(langid1, 0)
+    
     # Ensure potcogs table exists and clear it
     c.execute("""CREATE TABLE IF NOT EXISTS "potcogs" (
          "langid" integer NOT NULL,
@@ -128,6 +134,10 @@ def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: flo
     for refid, dist in similar:
         if refid in reflex_data:
             langid2, ipaform2, gloss2 = reflex_data[refid]
+            # Apply subgroup bonus: reduce distance for same-subgroup languages
+            target_subgroup = lang_subgroups.get(langid2, 0)
+            if source_subgroup > 0 and source_subgroup == target_subgroup:
+                dist = dist * subgroup_bonus
             results.append([refid, langid2, ipaform2, gloss2, dist])
     
     c.executemany(
