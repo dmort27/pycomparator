@@ -435,19 +435,32 @@ $(document).ready(function () {
   //////////////////////////////////////////
 
   function editMorphOfSupportingForm() {
-    console.log('Choosing Morph');
+    console.log('editMorphOfSupportingForm called');
     var protoSelection = protoforms.rows({
       selected: true
     }).data();
     var supSelection = supporting.rows({
       selected: true
     }).data();
+    
+    console.log('protoSelection length: ' + protoSelection.length);
+    console.log('supSelection length: ' + supSelection.length);
+    
+    if (protoSelection.length === 0) {
+      alert('Please select a protoform first.');
+      return;
+    }
+    if (supSelection.length === 0) {
+      alert('Please select a supporting form to edit.');
+      return;
+    }
+    
     var prefid = protoSelection[0][0];
     var plangid = protoSelection[0][1];
     for (var i = 0; i < supSelection.length; i++) {
       var refid = supSelection[i][0];
       var morph_index = supSelection[i][4];
-      console.log('Editing ' + refid + ' reflex of ' + prefid + ' in ' + plangid);
+      console.log('Editing refid=' + refid + ' of prefid=' + prefid + ' in plangid=' + plangid);
       $.ajax({
         url: '/addsupporting',
         data: {
