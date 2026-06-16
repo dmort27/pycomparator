@@ -116,7 +116,13 @@ def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: flo
     c.execute("SELECT refid, langid, ipaform, gloss FROM reflexes")
     reflex_data = {r[0]: (r[1], r[2], r[3]) for r in c.fetchall()}
     
-    # Clear and populate potcogs table
+    # Ensure potcogs table exists and clear it
+    c.execute("""CREATE TABLE IF NOT EXISTS "potcogs" (
+         "langid" integer NOT NULL,
+         "refid" integer NOT NULL PRIMARY KEY,
+         "ipaform" text NOT NULL,
+         "gloss" text,
+         "sim" real NOT NULL)""")
     c.execute("DELETE FROM potcogs")
     results = []
     for refid, dist in similar:
