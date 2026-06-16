@@ -601,8 +601,8 @@ $(document).ready(function () {
     select: {
       style: 'single'
     },
-    scrollY: '250px',
-    scrollCollapse: true,
+    scrollY: '100px',  // Initial value, will be recalculated
+    scrollCollapse: false,
     paging: true,
     pageLength: 50,
     deferRender: true,
@@ -652,8 +652,8 @@ $(document).ready(function () {
       dom: 'Brtip',
       select: true,
       serverSide: true,
-      scrollY: '250px',
-      scrollCollapse: true,
+      scrollY: '100px',  // Initial value, will be recalculated
+      scrollCollapse: false,
       paging: true,
       pageLength: 50,
       deferRender: true,
@@ -714,8 +714,8 @@ $(document).ready(function () {
       dom: 'Brtip',
       select: true,
       serverSide: true,
-      scrollY: '250px',
-      scrollCollapse: true,
+      scrollY: '100px',  // Initial value, will be recalculated
+      scrollCollapse: false,
       paging: true,
       pageLength: 50,
       deferRender: true,
@@ -739,8 +739,8 @@ $(document).ready(function () {
       dom: 'Brtip',
       select: true,
       serverSide: true,
-      scrollY: '250px',
-      scrollCollapse: true,
+      scrollY: '100px',  // Initial value, will be recalculated
+      scrollCollapse: false,
       paging: true,
       pageLength: 50,
       deferRender: true,
@@ -1458,6 +1458,42 @@ $(document).ready(function () {
         }
       });
     }
+    
+    ////////////////////////////////////////
+    // Resize tables to fill available space
+    ////////////////////////////////////////
+    
+    function resizeTables() {
+      $('.table-container').each(function() {
+        var container = $(this);
+        var wrapper = container.find('.dataTables_scrollBody');
+        if (wrapper.length === 0) return;
+        
+        // Calculate available height: container height minus header, buttons, scrollHead, info bar
+        var containerHeight = container.height();
+        var headerHeight = container.find('h3').outerHeight() || 0;
+        var buttonsHeight = container.find('.dt-buttons').outerHeight() || 0;
+        var scrollHeadHeight = container.find('.dataTables_scrollHead').outerHeight() || 0;
+        var infoHeight = container.find('.dataTables_info').outerHeight() || 0;
+        var paginateHeight = container.find('.dataTables_paginate').outerHeight() || 0;
+        var padding = 24;  // Padding from table-wrapper
+        
+        var availableHeight = containerHeight - headerHeight - buttonsHeight - scrollHeadHeight - infoHeight - paginateHeight - padding;
+        
+        if (availableHeight > 100) {
+          wrapper.css('max-height', availableHeight + 'px');
+          wrapper.css('height', availableHeight + 'px');
+        }
+      });
+    }
+    
+    // Resize on load and window resize
+    $(window).on('resize', function() {
+      resizeTables();
+    });
+    
+    // Initial resize after a short delay to ensure DataTables are fully rendered
+    setTimeout(resizeTables, 100);
     
   });
   
