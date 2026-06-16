@@ -1,7 +1,19 @@
-<div id="supporting{{ refid }}">
-    {% for i, morph in morphs %}
-      <span id="morph-{{ i }}"
-      {% if i==morph_index %}class="selected-morph" {% endif %}>{{ morph }}</span>
-      &nbsp;
-    {% endfor %}
+<div id="supporting{{ refid }}" data-refid="{{ refid }}" data-prefid="{{ prefid }}">
+    <div class="protoform-display" style="margin-bottom: 10px; color: #666;">
+        <strong>Protoform:</strong> {{ protoform }}
+    </div>
+    <div class="form-edit-section" style="margin-bottom: 10px;">
+        <label for="ipaform-input-{{ refid }}"><strong>Form:</strong></label>
+        <input type="text" id="ipaform-input-{{ refid }}" value="{{ form }}" style="width: 200px; margin-left: 5px;">
+        <button type="button" id="edit-form-btn-{{ refid }}" class="edit-form-btn" style="margin-left: 5px;">Edit Form</button>
+    </div>
+    <div class="morph-selection" style="margin-top: 10px;">
+        <strong>Select morph:</strong>
+        <div id="morphs-container-{{ refid }}" style="margin-top: 5px;">
+            {% for i, morph in morphs %}
+              <span id="morph-{{ refid }}-{{ i }}" class="morph-span{% if i==morph_index %} selected-morph{% endif %}">{{ morph }}</span>
+              &nbsp;
+            {% endfor %}
+        </div>
+    </div>
 </div>

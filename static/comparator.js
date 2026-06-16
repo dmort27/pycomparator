@@ -469,33 +469,61 @@ $(document).ready(function () {
 
   function popupSupportingDialog(html) {
     $('#dialogs').append(html);
-    var dialog = $('#supporting' + this.refid)
-    var morphs = $('#supporting' + this.refid + ' > span');
+    var refid = this.refid;
+    var prefid = this.prefid;
+    var plangid = this.plangid;
+    var dialog = $('#supporting' + refid);
+    var morphsContainer = $('#morphs-container-' + refid);
+    
     dialog.data('morph_index', this.morph_index);
-    morphs
-    .eq(this.morph_index)
-    .addClass('selected-morph');
-    morphs.each(
-      function(i) {
-        $(this).click(
-          function() {
-            morphs.removeClass('selected-morph');
-            $(this).addClass('selected-morph');
-            dialog.data('morph_index', i);
-            console.log('morph_index in click: ' + dialog.data('morph_index'));
+    
+    // Setup morph click handlers
+    function setupMorphClickHandlers() {
+      var morphs = morphsContainer.find('.morph-span');
+      morphs.each(function(i) {
+        $(this).off('click').on('click', function() {
+          morphs.removeClass('selected-morph');
+          $(this).addClass('selected-morph');
+          dialog.data('morph_index', i);
+          console.log('morph_index in click: ' + dialog.data('morph_index'));
+        });
+      });
+    }
+    setupMorphClickHandlers();
+    
+    // Setup Edit Form button
+    $('#edit-form-btn-' + refid).on('click', function() {
+      var newIpaform = $('#ipaform-input-' + refid).val();
+      $.ajax({
+        url: '/updateipaform',
+        data: {
+          refid: refid,
+          ipaform: newIpaform
+        },
+        success: function(response) {
+          console.log('Form updated successfully');
+          // Update the morphs display with new morphs
+          var morphsHtml = '';
+          for (var i = 0; i < response.morphs.length; i++) {
+            var selectedClass = (i === 0) ? ' selected-morph' : '';
+            morphsHtml += '<span id="morph-' + refid + '-' + i + '" class="morph-span' + selectedClass + '">' + response.morphs[i] + '</span>&nbsp;';
           }
-        )
-      }
-    );
-    dialog
-    .dialog({
-      title: 'Select Morph',
+          morphsContainer.html(morphsHtml);
+          dialog.data('morph_index', 0);
+          setupMorphClickHandlers();
+        }
+      });
+    });
+    
+    dialog.dialog({
+      title: 'Edit Form and Select Morph',
+      width: 400,
       buttons: [{
         text: 'OK',
         click: updateMorphSelection({
-          refid: this.refid,
-          prefid: this.prefid,
-          plangid: this.plangid,
+          refid: refid,
+          prefid: prefid,
+          plangid: plangid,
           dialog: dialog
         }),
       }],

@@ -189,12 +189,38 @@ table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
   padding: 2px 4px;
 }
 
-/* Selected morph highlighting */
+/* Morph selection styling */
+.morph-span {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #e2e8f0;
+  display: inline-block;
+  margin: 2px;
+}
+
+.morph-span:hover {
+  background-color: #edf2f7;
+}
+
 .selected-morph {
   font-weight: bold;
   background-color: #bee3f8;
-  padding: 2px 4px;
-  border-radius: 2px;
+  border-color: #63b3ed;
+}
+
+/* Edit Form button styling */
+.edit-form-btn {
+  padding: 4px 10px;
+  background-color: #4a5568;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.edit-form-btn:hover {
+  background-color: #2d3748;
 }
 
 /* jQuery UI dialog styling */

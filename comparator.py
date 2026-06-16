@@ -4,11 +4,15 @@ import sqlite3
 from pathlib import Path
 
 import numpy as np
+import panphon.distance
 from flask import Flask, g, jsonify, render_template, request
 
 from alignment import CognateAligner
 from embeddings import CognateEmbedder, build_embedder_from_db
 from ipa_normalize import normalize_to_ipa
+
+# Panphon distance calculator for morph selection
+dst = panphon.distance.Distance()
 
 app = Flask(__name__)
 
@@ -629,6 +633,43 @@ def add_new_reflex():
 ##############################################################################
 
 
+def compute_best_morph_index(form: str, protoform: str) -> int:
+    """
+    Compute the best morph index by finding the morph with lowest
+    phonological feature error rate compared to the protoform.
+    
+    Args:
+        form: The reflex form (space or hyphen delimited morphs)
+        protoform: The reconstructed protoform to compare against
+        
+    Returns:
+        Index of the morph with lowest feature error rate
+    """
+    if not form or not protoform:
+        return 0
+    
+    morphs = re.split(" |-", form)
+    if len(morphs) <= 1:
+        return 0
+    
+    best_index = 0
+    best_error = float('inf')
+    
+    for i, morph in enumerate(morphs):
+        if not morph:
+            continue
+        try:
+            error = dst.feature_error_rate(morph, protoform)
+            if error < best_error:
+                best_error = error
+                best_index = i
+        except Exception:
+            # If panphon fails on this morph, skip it
+            pass
+    
+    return best_index
+
+
 @app.route("/addsupporting")
 def add_supporting_form():
     print("/addsupporting")
@@ -637,24 +678,47 @@ def add_supporting_form():
     plangid = request.args.get("plangid", 0, type=int)
     print(f"Add {refid} to {prefid} in {plangid}")
     c = get_db().cursor()
+    
+    # Get the protoform for comparison
+    c.execute("SELECT ipaform FROM reflexes WHERE refid=?", (prefid,))
+    proto_row = c.fetchone()
+    protoform = proto_row[0] if proto_row else ""
+    
+    # Get the reflex form
+    c.execute("SELECT ipaform FROM reflexes WHERE refid=?", (refid,))
+    form_row = c.fetchone()
+    form = form_row[0] if form_row else ""
+    
+    # Check if this reflex is already in the set
     c.execute(
         "SELECT COUNT(*) FROM reflex_of WHERE prefid=? AND refid=?", (prefid, refid)
     )
-    if not c.fetchone()[0]:
+    is_new = not c.fetchone()[0]
+    
+    if is_new:
+        # Compute best morph index based on feature error rate
+        best_morph_index = compute_best_morph_index(form, protoform)
         c.execute(
             "INSERT INTO reflex_of (prefid, refid, plangid, morph_index) VALUES (?, ?, ?, ?)",
-            (prefid, refid, plangid, 0),
+            (prefid, refid, plangid, best_morph_index),
         )
         get_db().commit()
+    
+    # Get current morph index
     c.execute(
         "SELECT morph_index FROM reflex_of WHERE refid=? AND prefid=?", (refid, prefid)
     )
     morph_index = c.fetchone()[0]
-    c.execute("SELECT ipaform FROM reflexes WHERE refid=?", (refid,))
-    form = c.fetchone()[0]
-    morphs = enumerate(re.split(" |-", form))
+    
+    morphs = list(enumerate(re.split(" |-", form)))
     return render_template(
-        "supporting_dialog.jinja2", refid=refid, morphs=morphs, morph_index=morph_index
+        "supporting_dialog.jinja2", 
+        refid=refid, 
+        prefid=prefid,
+        morphs=morphs, 
+        morph_index=morph_index,
+        form=form,
+        protoform=protoform
     )
 
 
@@ -727,6 +791,19 @@ def update_reflex():
     c.execute("UPDATE reflexes SET form=?, gloss=?, ipaform=? WHERE refid=?", (form, gloss, ipaform, refid))
     get_db().commit()
     return jsonify({"success": "Updated successfully!"})
+
+
+@app.route("/updateipaform")
+def update_ipaform():
+    """Update just the ipaform field for a reflex (from the Select Morph dialog)."""
+    refid = request.args.get("refid", 0, type=int)
+    ipaform = request.args.get("ipaform", "", type=str)
+    c = get_db().cursor()
+    c.execute("UPDATE reflexes SET ipaform=? WHERE refid=?", (ipaform, refid))
+    get_db().commit()
+    # Return the new morphs list for updating the dialog
+    morphs = re.split(" |-", ipaform)
+    return jsonify({"success": "Updated successfully!", "morphs": morphs})
 
 
 ##############################################################################
