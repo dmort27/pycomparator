@@ -189,38 +189,73 @@ table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
   padding: 2px 4px;
 }
 
+/* Supporting Dialog (Edit Form and Select Morph) */
+.supporting-dialog {
+  font-size: 11px;
+}
+
+.dialog-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dialog-table td {
+  padding: 8px 4px;
+  vertical-align: top;
+}
+
+.dialog-label {
+  font-weight: bold;
+  width: 100px;
+  text-align: right;
+  padding-right: 12px !important;
+  white-space: nowrap;
+}
+
+.dialog-value {
+  text-align: left;
+}
+
+.protoform-value {
+  font-style: italic;
+  color: #4a5568;
+}
+
+.dialog-input {
+  width: 180px;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e0;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: inherit;
+  margin-right: 8px;
+}
+
+.morphs-container {
+  margin-top: 4px;
+}
+
 /* Morph selection styling */
 .morph-span {
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 4px 8px;
   border-radius: 3px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e0;
   display: inline-block;
-  margin: 2px;
+  margin: 2px 4px 2px 0;
+  background-color: #fff;
+  transition: all 0.1s ease;
 }
 
 .morph-span:hover {
   background-color: #edf2f7;
+  border-color: #a0aec0;
 }
 
-.selected-morph {
+.morph-span.selected-morph {
   font-weight: bold;
   background-color: #bee3f8;
-  border-color: #63b3ed;
-}
-
-/* Edit Form button styling */
-.edit-form-btn {
-  padding: 4px 10px;
-  background-color: #4a5568;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.edit-form-btn:hover {
-  background-color: #2d3748;
+  border-color: #3182ce;
 }
 
 /* jQuery UI dialog styling */

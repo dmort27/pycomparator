@@ -480,19 +480,18 @@ $(document).ready(function () {
     // Setup morph click handlers
     function setupMorphClickHandlers() {
       var morphs = morphsContainer.find('.morph-span');
-      morphs.each(function(i) {
-        $(this).off('click').on('click', function() {
-          morphs.removeClass('selected-morph');
-          $(this).addClass('selected-morph');
-          dialog.data('morph_index', i);
-          console.log('morph_index in click: ' + dialog.data('morph_index'));
-        });
+      morphs.off('click').on('click', function() {
+        var clickedIndex = parseInt($(this).data('index'));
+        morphs.removeClass('selected-morph');
+        $(this).addClass('selected-morph');
+        dialog.data('morph_index', clickedIndex);
+        console.log('morph_index in click: ' + clickedIndex);
       });
     }
     setupMorphClickHandlers();
     
-    // Setup Edit Form button
-    $('#edit-form-btn-' + refid).on('click', function() {
+    // Setup Update Form button
+    $('#update-form-btn-' + refid).on('click', function() {
       var newIpaform = $('#ipaform-input-' + refid).val();
       $.ajax({
         url: '/updateipaform',
@@ -506,18 +505,20 @@ $(document).ready(function () {
           var morphsHtml = '';
           for (var i = 0; i < response.morphs.length; i++) {
             var selectedClass = (i === 0) ? ' selected-morph' : '';
-            morphsHtml += '<span id="morph-' + refid + '-' + i + '" class="morph-span' + selectedClass + '">' + response.morphs[i] + '</span>&nbsp;';
+            morphsHtml += '<span id="morph-' + refid + '-' + i + '" class="morph-span' + selectedClass + '" data-index="' + i + '">' + response.morphs[i] + '</span>';
           }
           morphsContainer.html(morphsHtml);
           dialog.data('morph_index', 0);
           setupMorphClickHandlers();
+          // Also reload supporting table to show updated form
+          supporting.ajax.reload();
         }
       });
     });
     
     dialog.dialog({
       title: 'Edit Form and Select Morph',
-      width: 400,
+      width: 420,
       buttons: [{
         text: 'OK',
         click: updateMorphSelection({
