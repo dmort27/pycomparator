@@ -29,6 +29,7 @@ DEFAULT_GAP_COST = 3.0
 
 EQUIVALENT_SEGMENTS = {
     "v": "w",
+    "ɹ": "r",
 }
 
 
