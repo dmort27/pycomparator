@@ -247,6 +247,10 @@ $(document).ready(function () {
     var selection = reflexes.rows({
       selected: true
     }).data();
+    if (selection.length === 0) {
+      alert('Please select a reflex first.');
+      return;
+    }
     // Data columns: [0]=langid, [1]=refid, [2]=lname, [3]=ipaform, [4]=gloss, [5]=is_supporting, [6]=form
     console.log('Searching for matches: ' + selection[0][3] + ' (IPA) with gloss ' + selection[0][4]);
     $.ajax({
@@ -259,8 +263,12 @@ $(document).ready(function () {
         ipaform: selection[0][3],  // Use normalized IPA form for similarity
         gloss: selection[0][4],
       },
-      dataType: 'html',
-      success: updatePotCogs
+      dataType: 'json',
+      success: updatePotCogs,
+      error: function(xhr, status, error) {
+        console.error('Error finding potential cognates:', error);
+        alert('Error finding potential cognates. See console for details.');
+      }
     });
   }
 

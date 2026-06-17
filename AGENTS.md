@@ -140,3 +140,18 @@ Allows users to upload lexicon data files (CSV/TSV) with automatic IPA normaliza
 
 - `data/khunggoi.tsv`: 430 entries (uploaded as langid=70)
 - `data/phadang.tsv`: 399 entries (uploaded as langid=71)
+
+## Bug Fixes
+
+### Potential Cognates Button Fix (June 2026)
+
+**Issue**: "Potential Cognates" button in Reflexes table stopped working after DataTables operations (sorting, filtering, Show All) because these operations clear row selections.
+
+**Root Cause**: The `findPotCogs()` function in `comparator.js` accessed `selection[0]` without checking if any row was selected, causing a silent JavaScript error.
+
+**Fix Applied**:
+1. Added selection validation: `if (selection.length === 0) { alert('Please select a reflex first.'); return; }`
+2. Changed `dataType: 'html'` to `dataType: 'json'` to match server response
+3. Added error callback for AJAX request to surface failures
+
+**Pattern to Follow**: All button actions that operate on selected rows should validate selection exists before accessing row data (see `findPotRecons()` for correct pattern).
