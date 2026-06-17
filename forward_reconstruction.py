@@ -48,18 +48,45 @@ class ForwardReconstruction:
 
     @classmethod
     def from_yaml(cls, yaml_str: str) -> "ForwardReconstruction":
-        """Parse a forward reconstruction from YAML string."""
+        """Parse a forward reconstruction from YAML string.
+
+        Laws can be specified in two formats:
+
+        Compact list format (recommended):
+            laws:
+              d-to-r: ["d", "r", "", ""]
+              final-k: ["", "k", "[iu]", "\\Z"]
+
+        Verbose object format:
+            laws:
+              d-to-r:
+                source: "d"
+                target: "r"
+                left: ""
+                right: ""
+        """
         data = yaml.safe_load(yaml_str)
 
         laws = {}
         for law_id, law_data in data.get("laws", {}).items():
-            laws[law_id] = SoundLaw(
-                id=law_id,
-                source=law_data.get("source", ""),
-                target=law_data.get("target", ""),
-                left=law_data.get("left", ""),
-                right=law_data.get("right", ""),
-            )
+            if isinstance(law_data, list):
+                # Compact format: [source, target, left, right]
+                laws[law_id] = SoundLaw(
+                    id=law_id,
+                    source=law_data[0] if len(law_data) > 0 else "",
+                    target=law_data[1] if len(law_data) > 1 else "",
+                    left=law_data[2] if len(law_data) > 2 else "",
+                    right=law_data[3] if len(law_data) > 3 else "",
+                )
+            else:
+                # Verbose object format
+                laws[law_id] = SoundLaw(
+                    id=law_id,
+                    source=law_data.get("source", ""),
+                    target=law_data.get("target", ""),
+                    left=law_data.get("left", ""),
+                    right=law_data.get("right", ""),
+                )
 
         tree = {}
         for parent, children in data.get("tree", {}).items():

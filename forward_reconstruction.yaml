@@ -3,182 +3,48 @@
 # This file defines sound laws and a phylogenetic tree for applying them.
 # Laws map proto-forms to reflexes in daughter languages.
 
-# Sound laws: each law has source, target, left context, and right context
-# Empty strings mean "no constraint" for contexts, or "nothing" for source/target
-# Use \Z for word-final position in right context
+# Sound laws: [source, target, left_context, right_context]
+# - Empty string "" means "no constraint" for contexts
+# - Empty source "" means insertion; empty target "" means deletion
+# - Use \Z for word-final position in right context
 laws:
   # Shared laws (used by multiple branches)
-  cluster-simpl:
-    source: "[bp][lr]"
-    target: "p"
-    left: ""
-    right: ""
-  
-  d-to-r:
-    source: "d"
-    target: "r"
-    left: ""
-    right: ""
-  
-  barred-i-to-u:
-    source: "ɨ"
-    target: "u"
-    left: ""
-    right: ""
-  
-  b-to-p:
-    source: "b"
-    target: "p"
-    left: ""
-    right: ""
-  
-  hw-to-w:
-    source: "hw"
-    target: "w"
-    left: ""
-    right: ""
-  
-  tl-to-t:
-    source: "tl"
-    target: "t"
-    left: ""
-    right: ""
-  
-  esh-to-s:
-    source: "ʃ"
-    target: "s"
-    left: ""
-    right: ""
+  cluster-simpl: ["[bp][lr]", "p", "", ""]
+  d-to-r: ["d", "r", "", ""]
+  barred-i-to-u: ["ɨ", "u", "", ""]
+  b-to-p: ["b", "p", "", ""]
+  hw-to-w: ["hw", "w", "", ""]
+  tl-to-t: ["tl", "t", "", ""]
+  esh-to-s: ["ʃ", "s", "", ""]
 
   # Ukhrul: a-lowering before codas
-  a-lowering:
-    source: "a"
-    target: "ɐ"
-    left: ""
-    right: "[mnŋptk]"
-  
-  w-to-h:
-    source: "w"
-    target: "h"
-    left: ""
-    right: ""
+  a-lowering: ["a", "ɐ", "", "[mnŋptk]"]
+  w-to-h: ["w", "h", "", ""]
 
   # Huishu: vowel fronting, stop lenition
-  ej-to-u-final:
-    source: "ej"
-    target: "u"
-    left: ""
-    right: "\\Z"
-  
-  a-to-e-final:
-    source: "a"
-    target: "e"
-    left: ""
-    right: "\\Z"
-  
-  stop-to-glottal-final:
-    source: "[ptk]"
-    target: "ʔ"
-    left: ""
-    right: "\\Z"
-  
-  c-to-ts:
-    source: "c"
-    target: "ts"
-    left: ""
-    right: ""
+  ej-to-u-final: ["ej", "u", "", "\\Z"]
+  a-to-e-final: ["a", "e", "", "\\Z"]
+  stop-to-glottal-final: ["[ptk]", "ʔ", "", "\\Z"]
+  c-to-ts: ["c", "ts", "", ""]
 
   # Kachai: fricativization, vowel backing
-  hw-to-f:
-    source: "hw"
-    target: "f"
-    left: ""
-    right: ""
-  
-  ts-to-eth:
-    source: "ts"
-    target: "ð"
-    left: ""
-    right: ""
-  
-  d-to-eth:
-    source: "d"
-    target: "ð"
-    left: ""
-    right: ""
-  
-  ej-to-i-final:
-    source: "ej"
-    target: "i"
-    left: ""
-    right: "\\Z"
-  
-  a-to-turned-a-nasal-final:
-    source: "a"
-    target: "ɐ"
-    left: "[nŋ]"
-    right: "\\Z"
-  
-  a-to-u-final:
-    source: "a"
-    target: "u"
-    left: ""
-    right: "\\Z"
-  
-  i-to-turned-a-final:
-    source: "i"
-    target: "ɐ"
-    left: ""
-    right: "\\Z"
+  hw-to-f: ["hw", "f", "", ""]
+  ts-to-eth: ["ts", "ð", "", ""]
+  d-to-eth: ["d", "ð", "", ""]
+  ej-to-i-final: ["ej", "i", "", "\\Z"]
+  a-to-turned-a-nasal-final: ["a", "ɐ", "[nŋ]", "\\Z"]
+  a-to-u-final: ["a", "u", "", "\\Z"]
+  i-to-turned-a-final: ["i", "ɐ", "", "\\Z"]
 
   # Tusom: palatalization, vowel fronting
-  hw-to-curly-c:
-    source: "hw"
-    target: "ɕ"
-    left: ""
-    right: ""
-  
-  esh-to-curly-c:
-    source: "ʃ"
-    target: "ɕ"
-    left: ""
-    right: ""
-  
-  c-to-t-curly-c:
-    source: "c"
-    target: "tɕ"
-    left: ""
-    right: ""
-  
-  ts-to-z:
-    source: "ts"
-    target: "z"
-    left: ""
-    right: ""
-  
-  d-to-t:
-    source: "d"
-    target: "t"
-    left: ""
-    right: ""
-  
-  tl-to-l-belt:
-    source: "tl"
-    target: "ɬ"
-    left: ""
-    right: ""
-  
-  ej-to-a-final:
-    source: "ej"
-    target: "a"
-    left: ""
-    right: "\\Z"
-  
-  a-to-i-final:
-    source: "a"
-    target: "i"
-    left: ""
-    right: "\\Z"
+  hw-to-curly-c: ["hw", "ɕ", "", ""]
+  esh-to-curly-c: ["ʃ", "ɕ", "", ""]
+  c-to-t-curly-c: ["c", "tɕ", "", ""]
+  ts-to-z: ["ts", "z", "", ""]
+  d-to-t: ["d", "t", "", ""]
+  tl-to-l-belt: ["tl", "ɬ", "", ""]
+  ej-to-a-final: ["ej", "a", "", "\\Z"]
+  a-to-i-final: ["a", "i", "", "\\Z"]
 
 # Phylogenetic tree: maps parent nodes to lists of children with their laws
 # Leaf nodes (languages) are children that don't appear as keys
