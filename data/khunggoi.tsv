@@ -33,8 +33,8 @@ darkness	t͡ɕa-ma-tiŋ-je
 god	kuŋ-jo
 demon	kuŋ-jo
 man	kəhaj-re
-woman	əpʰae-nau
-boy	aŋen-nau
+woman	əpʰae-naw
+boy	aŋen-naw
 girl	nɨpu-ni
 animal	sejt
 bird	əta
@@ -47,8 +47,8 @@ brother (elder)	əma
 brother (younger)	ɨ-ka
 sister (elder)	i-dʑoj-do
 sister (younger)	ɨ-t͡ɕa-do
-son	i-ni-au-pa
-daughter	i-ni-au-nu
+son	i-ni-aw-pa
+daughter	i-ni-aw-nu
 elephant	sa-kutaje
 rhinoceros	si-pa
 buffalo	sɨ-loj
@@ -73,7 +73,7 @@ hen	ha
 toucan	ha-ta
 fish	kʰi
 lizard	t͡ɕitaŋ
-crab	kə-rau
+crab	kə-raw
 snake	pʰu-ru
 centipede	ku-pa
 earthworm	m̩laru
@@ -84,7 +84,7 @@ mosquito	hə-t͡ɕɨk
 beetle	ku-ma
 ant	ar-ziŋ
 white ant	lej-pum-pe
-head	əkau
+head	əkaw
 body	əsa
 leg	əkoŋ
 arm	əkʰut
@@ -125,7 +125,7 @@ horn	ət͡ɕi
 wing	əha
 feather	əha
 tail	kəmaj
-footprint	əkʰo-t͡ɕʰauna
+footprint	əkʰo-t͡ɕʰawna
 hoof	əkoŋ
 hind-leg	əpʰaj-kʰu-duŋ
 fore-leg	kəm-ma
@@ -137,7 +137,7 @@ fruit	ətʰa
 flower	əroŋ
 bud	əpom-habe
 creeper	ku-ru
-mango	tʰaje-nau
+mango	tʰaje-naw
 plantain	nahari
 plantain	mota
 jack	nahari
@@ -145,7 +145,7 @@ jack	mota
 bamboo	kəha-tʰiŋ
 cane	sənna-ru
 cotton	pat
-paddy	məpʰau
+paddy	məpʰaw
 rice	shi-oŋ
 cucumber	tʰaj-d͡ʑuta
 pumpkin	soŋ
@@ -166,7 +166,7 @@ bark	tʰiŋ-kʰo
 husk of rice	poha
 juice	həru
 sap	naj-nəp
-cultivation	lau
+cultivation	law
 flesh	sit
 fat	ətʰa
 oil	ətʰa
@@ -195,13 +195,13 @@ cloth	kəd͡ʑol
 spear	kət͡ɕaje
 dao	kʰi
 dao	t͡ɕem
-knife	kʰenau
-knife	t͡ɕʰemnau
+knife	kʰenaw
+knife	t͡ɕʰemnaw
 bow	kət͡ɕet
 bow	gopiro
 arrow	məle
 shield	t͡ɕuŋ
-panjee	kəsau
+panjee	kəsaw
 musket	pomaj
 poison	kʰu-ru
 boat	məsi
@@ -266,10 +266,10 @@ long	əseŋ-e
 short	sunaj-e
 high	hu-laj
 low	hu-li-je
-much	t͡ɕau-naj
+much	t͡ɕaw-naj
 liettle	suna-gi-je
-great	kəma-t͡ɕau-je
-small	kədo-nau-je
+great	kəma-t͡ɕaw-je
+small	kədo-naw-je
 good	təka-pʰene
 bad	map-hemne
 broad	kəvaj-e
@@ -279,7 +279,7 @@ crooked	kəma-ko-i-ne
 round	tuk-ma-koj-je-ba
 square	kəma-ki-je-ba
 old	kəse-ret
-young	an-gen-gau
+young	an-gen-gaw
 old	kam-hoj
 new	kətʰa
 ripe	kəmu-ne
@@ -289,7 +289,7 @@ bitter	əkʰa-e
 hot	sa-e
 cold	əsik-je
 handsome	pʰəraj-e
-ugly	əha-t͡ɕʰau-naj
+ugly	əha-t͡ɕʰaw-naj
 fat	ta-kə-si-ne
 lean	əha-ta-to-i
 thick	tʰənaj
@@ -297,7 +297,7 @@ thin	pətiŋ-je
 heavy	rik-je
 light	məpa-tiŋ-je
 hard	praŋ-e
-soft	kəma-nau-ne
+soft	kəma-naw-ne
 sharp	morok-si-ne
 blunt	tej-soj-ne-ba
 dear	əjoŋ-ma-wa-mene
@@ -320,7 +320,7 @@ lame	əpʰej-kəsik-le
 deaf	kəna-su-kok-pa
 dumb	ku-mo-so-je
 black	i-pa
-white	kəŋau-bu
+white	kəŋaw-bu
 red	kəm-hi
 green	səŋ-na
 yellow	sa-ru
@@ -332,7 +332,7 @@ die	tʰi-lo
 eat	si-lo
 drink	suk-lo
 sleep	bie-to-lo
-wake	tʰau-lo-wa
+wake	tʰaw-lo-wa
 laugh	ha-kal-lo
 weep	t͡ɕut-lo
 speak	heŋ-lo
@@ -346,7 +346,7 @@ fall	lej-ti-lo
 stand	məliŋ-lo
 sit	paŋ-lo
 want (to)	po-lo
-take	kau-lo
+take	kaw-lo
 seek	pʰe-lo
 give	pi-lo
 carry	pʰuŋ-lo
@@ -377,7 +377,7 @@ come	wa-lo
 arrive	suŋ-lo
 jump	po-wa-lo
 fly	pre-wa-ma
-sneeze	krok-t͡ɕhau-lo
+sneeze	krok-t͡ɕhaw-lo
 snore	map-hi-lo
 belch	tha-ke-ko
 cough	krok-ko-li-ho
@@ -394,7 +394,7 @@ I will go	i re ge ba
 I go not	i ma re mne
 I will not go	i ma tuŋ ma ro-je
 I wish to go	i re a niŋ-e
-I can go	i re a jau waŋ-e
+I can go	i re a jaw waŋ-e
 I may go	i t͡ɕhut phiri-je
 let us go	t͡ɕhut se
 go thou	na re to ma
@@ -407,7 +407,7 @@ no	məke
 why	ki kəlo
 how	ke te taŋe
 how much?	kija ke no
-how large?	kija ke kum t͡ɕhau kəlo
+how large?	kija ke kum t͡ɕhaw kəlo
 how high?	kija ke seŋ kəlo
 how deep?	kija ke tak pi kəlo
 how far?	kija ke seŋ kəlo
