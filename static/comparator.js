@@ -252,7 +252,6 @@ $(document).ready(function () {
       return;
     }
     // Data columns: [0]=langid, [1]=refid, [2]=lname, [3]=ipaform, [4]=gloss, [5]=is_supporting, [6]=form
-    console.log('Searching for matches: ' + selection[0][3] + ' (IPA) with gloss ' + selection[0][4]);
     $.ajax({
       refid: selection[0][1],
       url: '/findpotcogs',
@@ -289,7 +288,6 @@ $(document).ready(function () {
       return;
     }
     // Data columns: [0]=langid, [1]=refid, [2]=lname, [3]=ipaform, [4]=gloss, [5]=is_supporting, [6]=form
-    console.log('Searching for reconstructions: ' + selection[0][3] + ' (IPA) with gloss ' + selection[0][4]);
     $.ajax({
       url: '/findpotrecons',
       data: {
@@ -297,11 +295,20 @@ $(document).ready(function () {
         gloss: selection[0][4],
       },
       dataType: 'json',
-      success: function() {
+      success: function(response) {
         // Switch protoforms table to potrecons mode and reload
         protoformsPotreconsMode = true;
         protoformsRefidsFilter = '';
+        // Clear any column filters and filter input values
+        protoforms.columns().search('');
+        $('#protoforms_wrapper input.column-filter').val('');
+        // Reset sort order to column 0 (ID/similarity) ascending
+        protoforms.order([0, 'asc']);
         protoforms.ajax.reload();
+      },
+      error: function(xhr, status, error) {
+        console.error('Error finding potential reconstructions:', error);
+        alert('Error finding potential reconstructions. See console for details.');
       }
     });
   }
