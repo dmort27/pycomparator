@@ -94,7 +94,7 @@ def close_connection(exception):
 ##############################################################################
 
 
-def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: float, subgroup_bonus: float = 0.5) -> None:
+def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: float, subgroup_bonus: float = 0.2) -> None:
     """
     Find potential cognates using pre-computed embeddings.
     
@@ -103,7 +103,7 @@ def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: flo
         ipaform1: Normalized IPA form to match (without tones)
         gloss1: Gloss to match
         alpha: Weight for phonetic vs semantic (higher = more phonetic)
-        subgroup_bonus: Multiplier for same-subgroup matches (0.5 = 50% distance reduction)
+        subgroup_bonus: Multiplier for same-subgroup matches (0.2 = 80% distance reduction)
     """
     # Update embedder alpha if different
     embedder.alpha = alpha
@@ -199,6 +199,73 @@ def find_potential_reconstructions(ipaform1: str, gloss1: str, alpha: float) -> 
     
     c.executemany(
         "INSERT INTO potrecons (refid, langid, ipaform, gloss, sim) VALUES (?, ?, ?, ?, ?)",
+        results,
+    )
+    get_db().commit()
+
+
+def find_potential_reflexes(ipaform1: str, gloss1: str, alpha: float, plangid: int = None, subgroup_bonus: float = 0.2) -> None:
+    """
+    Find potential reflexes for a protoform using pre-computed embeddings.
+    
+    This finds regular reflexes (non-proto-language items) that might be
+    descendants of a given protoform. Results are stored in the potcogs table.
+    
+    Args:
+        ipaform1: Normalized IPA form of the protoform
+        gloss1: Gloss of the protoform
+        alpha: Weight for phonetic vs semantic (higher = more phonetic)
+        plangid: Proto-language ID (used to boost descendants of this proto-language)
+        subgroup_bonus: Multiplier for descendant languages (0.2 = 80% distance reduction)
+    """
+    # Update embedder alpha if different
+    embedder.alpha = alpha
+    
+    # Find similar items using embeddings (fast!)
+    similar = embedder.find_similar(
+        query_form=ipaform1,
+        query_gloss=gloss1,
+        exclude_langid=None,  # Don't exclude any language
+        langids=langids,
+    )
+    
+    # Build refid -> (langid, ipaform, gloss) lookup
+    c = get_db().cursor()
+    c.execute("SELECT refid, langid, ipaform, gloss FROM reflexes")
+    reflex_data = {r[0]: (r[1], r[2], r[3]) for r in c.fetchall()}
+    
+    # Get the set of proto-language IDs (languages that have descendants)
+    c.execute("SELECT DISTINCT plangid FROM descendant_of")
+    proto_langids = {r[0] for r in c.fetchall()}
+    
+    # Get descendant languages for the given proto-language (for subgroup bonus)
+    descendant_langids = set()
+    if plangid:
+        c.execute("SELECT langid FROM descendant_of WHERE plangid = ?", (plangid,))
+        descendant_langids = {r[0] for r in c.fetchall()}
+    
+    # Ensure potcogs table exists and clear it
+    c.execute("""CREATE TABLE IF NOT EXISTS "potcogs" (
+         "langid" integer NOT NULL,
+         "refid" integer NOT NULL PRIMARY KEY,
+         "ipaform" text NOT NULL,
+         "gloss" text,
+         "sim" real NOT NULL)""")
+    c.execute("DELETE FROM potcogs")
+    
+    results = []
+    for refid, dist in similar:
+        if refid in reflex_data:
+            langid2, ipaform2, gloss2 = reflex_data[refid]
+            # Only include non-protoforms (regular reflexes, not proto-languages)
+            if langid2 not in proto_langids:
+                # Apply subgroup bonus: reduce distance for descendant languages
+                if langid2 in descendant_langids:
+                    dist = dist * subgroup_bonus
+                results.append([refid, langid2, ipaform2, gloss2, dist])
+    
+    c.executemany(
+        "INSERT INTO potcogs (refid, langid, ipaform, gloss, sim) VALUES (?, ?, ?, ?, ?)",
         results,
     )
     get_db().commit()
@@ -412,6 +479,8 @@ def protoforms():
     draw = request.args.get("draw", 0, type=int)
     # Filter by refids (comma-separated list of reflex ids to find their protoforms)
     refids_param = request.args.get("refids", "", type=str)
+    # Filter by prefids (comma-separated list of protoform ids to show directly)
+    prefids_param = request.args.get("prefids", "", type=str)
     # Filter by potential reconstructions (from potrecons table)
     potrecons = request.args.get("potrecons", "false", type=str).lower() == "true"
     # Search strings for language, form, and gloss
@@ -475,6 +544,46 @@ def protoforms():
                 ORDER BY {ordering_term}
                 LIMIT ? OFFSET ?""",
             params2 + [length, start],
+        )
+    # If filtering by prefids, show those protoforms directly
+    elif prefids_param:
+        order = cols[order_col] if order_col < len(cols) else cols[0]
+        ordering_term = f"{order} {direction}"
+        
+        prefids = [int(r) for r in prefids_param.split(",") if r.strip().isdigit()]
+        if not prefids:
+            return jsonify({"draw": draw, "recordsTotal": 0, "recordsFiltered": 0, "data": []})
+        
+        placeholders = ",".join("?" * len(prefids))
+        
+        c.execute(
+            f"""SELECT COUNT(*) FROM reflexes
+                INNER JOIN descendant_of ON reflexes.langid=plangid
+                WHERE reflexes.refid IN ({placeholders})""",
+            prefids,
+        )
+        total = int(c.fetchone()[0])
+        
+        c.execute(
+            f"""SELECT COUNT(*) FROM reflexes
+                INNER JOIN descendant_of ON reflexes.langid=plangid
+                JOIN langnames ON langnames.langid=reflexes.langid
+                WHERE reflexes.refid IN ({placeholders})
+                AND {lang_cond} AND {form_cond} AND {gloss_cond}""",
+            prefids + params,
+        )
+        filtered_total = int(c.fetchone()[0])
+        
+        c.execute(
+            f"""SELECT reflexes.refid, plangid, langnames.name AS lname, ipaform, gloss
+                FROM reflexes
+                INNER JOIN descendant_of ON plangid=reflexes.langid
+                JOIN langnames ON langnames.langid=reflexes.langid
+                WHERE reflexes.refid IN ({placeholders})
+                AND {lang_cond2} AND {form_cond2} AND {gloss_cond2}
+                ORDER BY {ordering_term}
+                LIMIT ? OFFSET ?""",
+            prefids + params2 + [length, start],
         )
     # If filtering by refids, find protoforms associated with those reflexes
     elif refids_param:
@@ -940,6 +1049,56 @@ def delete_reflex():
 ##############################################################################
 
 
+@app.route("/newetymondialog")
+def new_etymon_dialog():
+    """Return the dialog HTML for creating a new etymon."""
+    c = get_db().cursor()
+    c.execute(
+        "SELECT DISTINCT langnames.langid, langnames.name "
+        + "FROM langnames "
+        + "INNER JOIN descendant_of ON plangid=langnames.langid "
+        + "ORDER BY langnames.name"
+    )
+    plangs = c.fetchall()
+    return render_template("new_set_dialog.jinja2", plangs=plangs)
+
+
+@app.route("/addnewetymon")
+def add_new_etymon():
+    """Add a new etymon (protoform) without linking to any reflex."""
+    global langids
+    plangid = request.args.get("plangid", 0, type=int)
+    protoform = request.args.get("protoform", "", type=str)
+    protogloss = request.args.get("protogloss", "", type=str)
+    # Compute normalized IPA form for proto-form
+    ipaform = normalize_to_ipa(protoform)
+    c = get_db().cursor()
+    c.execute(
+        "INSERT INTO reflexes (langid, sourceid, form, gloss, ipaform) VALUES (?, -2, ?, ?, ?)",
+        (plangid, protoform, protogloss, ipaform),
+    )
+    get_db().commit()
+    c.execute("SELECT LAST_INSERT_ROWID()")
+    prefid = c.fetchone()[0]
+    # Update embeddings for the new etymon
+    embedder.update_embedding(prefid, ipaform, protogloss)
+    # Update langids list
+    langids.append(plangid)
+    return jsonify({"success": "Etymon successfully added", "prefid": prefid})
+
+
+@app.route("/findpotreflexes")
+def find_pot_reflexes():
+    """Find potential reflexes for a protoform/reconstruction."""
+    ipaform = request.args.get("ipaform", "", type=str)
+    gloss = request.args.get("gloss", "", type=str)
+    plangid = request.args.get("plangid", 0, type=int)
+    alpha = request.args.get("alpha", 0.4, type=float)
+    find_potential_reflexes(ipaform, gloss, alpha, plangid=plangid if plangid else None)
+    return jsonify({"success": "Potential reflexes computed"})
+
+
+# Legacy endpoints kept for backward compatibility
 @app.route("/newsetdialog")
 def new_set_dialog():
     langname = request.args.get("langname", "", type=str)

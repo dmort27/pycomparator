@@ -343,69 +343,97 @@ $(document).ready(function () {
   // Add cognate sets
   ///////////////////////////////////////////////////////////////////////////////
 
-  function newSet() {
-    var selection = reflexes.rows({
-      selected: true
-    }).data();
-    var etymon = selection[0];
-    if (typeof etymon !== 'undefined') {
-      console.log('etymon[2]=' + etymon[2])
-      $.ajax({
-        refid: etymon[0],
-        url: '/newsetdialog',
-        data: {
-          langid: etymon[0],
-          refid: etymon[1],
-          lname: etymon[2],
-          form: etymon[3],
-          gloss: etymon[4]
-        },
-        dataType: 'html',
-        success: newSetDialog
-      });
-    }
+  function newEtymon() {
+    // Fetch dialog HTML from server (just need proto-languages list)
+    $.ajax({
+      url: '/newetymondialog',
+      dataType: 'html',
+      success: newEtymonDialog
+    });
   }
 
-  function newSetDialog(data) {
-    var refid = this.refid;
+  function newEtymonDialog(data) {
     $('#dialogs').append(data);
-    $('#newset').data('refid', refid).dialog({
-      title: 'New Correspondence Set',
+    $('#newset').dialog({
+      title: 'New Etymon',
+      width: 400,
       buttons: [{
         text: 'Add',
-        click: addNewSet
+        click: addNewEtymon
       },
       {
         text: 'Cancel',
         click: function() {
-          console.log('Cancel');
           $(this).dialog('close');
         }
       }]
-    })
+    });
   }
 
-  function addNewSet() {
-    var refid = $(this).data('refid');
+  function addNewEtymon() {
     var protoform = $('#protoform').val();
     var protogloss = $('#protogloss').val();
     var plangid = $('#plangid').val();
-    var morph_index = $('#morph_index').val();
+    var dialog = $(this);
     $.ajax({
       type: 'GET',
-      url: '/addnewset',
+      url: '/addnewetymon',
       data: {
-        refid: refid,
         plangid: plangid,
         protoform: protoform,
-        protogloss: protogloss,
-        morph_index: morph_index
+        protogloss: protogloss
       },
-      dataType: 'json'
+      dataType: 'json',
+      success: function(response) {
+        if (response.prefid) {
+          // Filter Reconstructions to show only the new etymon using server-side filter
+          protoformsRefidsFilter = '';
+          protoformsPrefidsFilter = response.prefid.toString();
+          protoformsPotreconsMode = false;
+          protoforms.ajax.reload();
+          // Find potential reflexes for this new etymon
+          findPotReflexesForEtymon(response.prefid, plangid, protoform, protogloss);
+        }
+        dialog.dialog('close');
+      }
     });
-    protoforms.ajax.reload();
-    console.log('Added new set:' + ' protoform: ' + protoform + ' protogloss: ' + protogloss);
-    $(this).dialog('close');
+  }
+
+  function findPotReflexes() {
+    var selection = protoforms.rows({
+      selected: true
+    }).data();
+    if (selection.length === 0) {
+      alert('Please select a reconstruction first.');
+      return;
+    }
+    // Data columns: [0]=refid, [1]=plangid, [2]=lname, [3]=ipaform, [4]=gloss
+    var prefid = selection[0][0];
+    var plangid = selection[0][1];
+    var ipaform = selection[0][3];
+    var gloss = selection[0][4];
+    findPotReflexesForEtymon(prefid, plangid, ipaform, gloss);
+  }
+
+  function findPotReflexesForEtymon(prefid, plangid, ipaform, gloss) {
+    $.ajax({
+      url: '/findpotreflexes',
+      data: {
+        prefid: prefid,
+        plangid: plangid,
+        ipaform: ipaform,
+        gloss: gloss
+      },
+      dataType: 'json',
+      success: function(response) {
+        // Reload potcogs table to show potential reflexes
+        potcogs.ajax.reload();
+      },
+      error: function(xhr, status, error) {
+        console.error('Error finding potential reflexes:', error);
+        alert('Error finding potential reflexes. See console for details.');
+      }
+    });
   }
 
   //////////////////////////////////////////
@@ -641,6 +669,8 @@ $(document).ready(function () {
 
   // Store refids filter for protoforms table (empty = show all)
   var protoformsRefidsFilter = '';
+  // Store prefids filter for protoforms table (direct protoform ID filter)
+  var protoformsPrefidsFilter = '';
   // Store potrecons mode for protoforms table (false = normal, true = show potential reconstructions)
   var protoformsPotreconsMode = false;
 
@@ -671,13 +701,14 @@ $(document).ready(function () {
       type: "GET",
       data: function(d) {
         d.refids = protoformsRefidsFilter;
+        d.prefids = protoformsPrefidsFilter;
         d.potrecons = protoformsPotreconsMode;
       }
     },
     buttons: [
       {
-        text: 'New Set from Reflex',
-        action: newSet
+        text: 'New Etymon',
+        action: newEtymon
       },
       {
         text: 'Edit',
@@ -688,9 +719,14 @@ $(document).ready(function () {
         action: deleteProtoform
       },
       {
+        text: 'Potential Reflexes',
+        action: findPotReflexes
+      },
+      {
         text: 'Show All',
         action: function() {
           protoformsRefidsFilter = '';
+          protoformsPrefidsFilter = '';
           protoformsPotreconsMode = false;
           protoforms.ajax.reload();
         }

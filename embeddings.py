@@ -193,6 +193,33 @@ class CognateEmbedder:
         
         return results
     
+    def update_embedding(self, refid: int, form: str, gloss: str) -> None:
+        """
+        Add or update an embedding for a single item.
+        
+        Args:
+            refid: The reflex ID
+            form: IPA form
+            gloss: Gloss/meaning
+        """
+        if not self._fitted:
+            raise RuntimeError("Embedder not fitted. Call fit() first.")
+        
+        # Compute embeddings for the new item
+        phon_emb = self._embed_phonetic(form)
+        sem_emb = self._embed_semantic(gloss)
+        
+        # Check if refid already exists
+        if refid in self.refids:
+            idx = self.refids.index(refid)
+            self.phonetic_embeddings[idx] = phon_emb
+            self.semantic_embeddings[idx] = sem_emb
+        else:
+            # Add new entry
+            self.refids.append(refid)
+            self.phonetic_embeddings = np.vstack([self.phonetic_embeddings, phon_emb])
+            self.semantic_embeddings = np.vstack([self.semantic_embeddings, sem_emb])
+    
     def save(self, path: str) -> None:
         """Save fitted embedder to file."""
         data = {
