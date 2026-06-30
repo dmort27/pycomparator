@@ -1,0 +1,230 @@
+| PTk | Kachai | Huishu | Tusom | C. Tangkhul | N. Tankghul | Luhuppa | Champhung | Ukhrul | Phadang | Challow | Khangoi | Kongai |
+|-----+--------+--------+-------+-------------+-------------+---------+-----------+--------+---------+---------+---------+--------|
+| a   | u      | we     | i     | a           | a           | a       | a         | a      | a       | e       | a       | ə      |
+| e   | i      | e      | i     | i           | i           |         |           | i      |         |         |         |        |
+| i   | ɐ      | ik     | ɯ     | i           | ɯ           | i       | i         | i      | e       | ak      | i       | i      |
+| o   | ɐ      | u      | u     | o           | o           |         |           | o      | u       |         | o       |        |
+| u   | ɐ      | uk     | ɯ/u/y | u/wi        | ɯ/wɯ        | ɯ/u     | ɯ/u       | u      | u       | uk      | u       | u      |
+| ɨ   | i      | uk     | y     | ɯ           | ɯ           | ɯ       | i         | u      | uj      | uk      | u       | ɨ/u    |
+|-----+--------+--------+-------+-------------+-------------+---------+-----------+--------+---------+---------+---------+--------|
+| aj  | we     | ej     | i     | aj          | aj          | aj      | aj        | aj     | aj      | ej      | i       | i      |
+| aw  | o      | ow     | ɯ     | aw          | aw          | aw      |           | aw     | aw      |         | a       |        |
+|-----+--------+--------+-------+-------------+-------------+---------+-----------+--------+---------+---------+---------+--------|
+| ej  | i      | u      | a     | aj          | aj          | aj      |           | ej     | i       | aj/a    | ej      | e      |
+| ew  | i      | ow     | uə    |             |             |         |           | ew     | aw      | i       | o       |        |
+|-----+--------+--------+-------+-------------+-------------+---------+-----------+--------+---------+---------+---------+--------|
+| oj  | i      | u      | y/uj  |             |             | oj      | ɯj        | uj     | oj      | aw      | oj/ej   |        |
+| ow  | e      | ow     | uə    | aw          | aw          | uj      | aw        | uj     | ew      | aw      | aw      | a      |
+|-----+--------+--------+-------+-------------+-------------+---------+-----------+--------+---------+---------+---------+--------|
+
+
+* What Happened in Kachai
+
+1. o > ɐ (oj > ɐj > ij > i, ow > ɐw > e), ɐw > e has to occur after e > i
+2. a > u (aj > uj > we, aw > uw > o)
+3. e > i (ej > ij > i, ew > iw > i)
+4. i > ɐ
+5. u > ɐ (except after labials)
+6. ɨ > i (except after labials, where it becomes we). Perhaps ɨ > uj > we, sharing a change with Phadang
+
+
+- In general, it looks like *a > Kachai /o/ in closed syllables, but there are a bunch of apparent counter examples.
+- *ŋ gets deleted after /o/, /a/
+y- *ɐ > a / _[pt?kmŋ]
+
+|----+----+----+----+----+-------+------+---------+----|
+|    | p  | t  | k  | m  | n     | ŋ    | l       | r  |
+|----+----+----+----+----+-------+------+---------+----|
+| i  | ip | ɐt | ɐk | im | ɐn    | ɐŋ   | ɐ       | ?  |
+| u  | up | ut | uk | um | un    | uŋ   | wi      | ur |
+| ɯ  |    |    |    |    |       |      |         |    |
+| e  | ?  | ɐt | ek | ?  | ɐn    | eŋ   | ?       | ir |
+| o  | ?  | ɐ  | ɐk | ?  | ɐn/on | oŋ   | we      | or |
+| ɐ  | ap | ɐt | ak | am | ɐn/on | a/ɐŋ |         | ar |
+| a  | op | ot | ok | om | on    | o?   | we < oj | or |
+| aː |    | e  | a  | am | an?   | o?   | i       |    |
+|----+----+----+----+----+-------+------+---------+----|
+
+Okay, neat:
+
+1. a > o in open syllables, but there is some distinction (long-short?) that is being missed, affecting quality and coda deletion
+   * It looks like there was a general process of raising, rounding, and backing of *aː
+   * In closed syllables, this stopped at /o/
+   * In open syllables, this proceeded to /u/
+   * Did not affect *oŋ, though
+   * Also, coda deletion in aːŋ, which must have happened before raising to oŋ but after open-syllable o raised to u (counterfeeding).
+2. ol > we
+3. i > ɐ before t, k, n, and ŋ
+4. e > ɐ / _[tn]
+5. o > ɐ / _[tkn]
+6. a > o in closed syllables, generally, but there is some (length?) difference that is associated with code deletion and different quality changes
+7. l > j such that al > aj > (oj > ) we. This seems to be shared. Note that ol > oj > we also
+
+
+
+- [ ] Check reconstruction of “thorn”. Should have different rhyme than “rice (cooked)”
+- [ ] Check “brother-in-law” versus “side”. Maybe length?
+- [ ] Check “defecate” versus “kidney”
+- [ ] Check which languages have l > j / _#:
+  * Tusom
+  * Ukhrul
+  * CTk
+  * Luhuppa
+  * Phadang
+  * 
+- [ ] Figure out what is going on with “thirst”.
+
+
+* What Happened in Huishu
+
+1. a > we (perhaps we > e applied in Challow) but becomes /i/ after *n (a > i / n_ also in Challow)
+2. ɨ > u (shared with Challow)
+3. 0 > k / [ui]_# (shared with Challow)
+   + *-i > ik
+   + *-u > uk
+   + *-ɨ > uk
+4. o > u (not clear what happens in Challow)
+5. aj > ej (shared with Challow)
+6. aw > ow (Challow unclear)
+7. ej > u (but not in Challow, where ej > aj)
+8. ew > ow (but goes to i in Challow)
+9. oj > u (could be oj > o > u, which would not be shared with Challow)
+10. ow stays ow
+
+|----+---------+--------+--------+-------+---------+--------+-------+-------|
+|    | p       | t      | k      | m     | n       | ŋ      | l     | r     |
+|----+---------+--------+--------+-------+---------+--------+-------+-------|
+| i  | ep      | ejʔ    | oʔ     | em/ɐm | ɐn      | ɐŋ     | ɐŋ    | u     |
+| u  | ɐp      | uʔ/ejʔ | uʔ     | um/ɐm | ɐn/un   | uŋ     | ɐn/ɐŋ | u     |
+| ɯ  |         |        |        |       |         |        |       |       |
+| e  | ɐp      | ejʔ    | eʔ     | em    | ?       | e (i)  | ?     | e     |
+| o  | ɐp      | oʔ     | uʔ (ɐ) | ?     | ɐŋ (o?) | u (ɐŋ) | ɐŋ    | u     |
+| ɐ  | ɐʔ (eʔ) | ejʔ    | oʔ     | am/ɐm | ej      | o (ɐŋ) | ?     | o     |
+| a  | aʔ      | e      | aʔ     | am    | ej      | a      | ej    | a (o) |
+| aː | ?       | ?      | ?      | am    | ?       | i (o)  | ?     | ?     |
+|----+---------+--------+--------+-------+---------+--------+-------+-------|
+
+
+- at > e
+- [+low] > ej / _[ltn]
+- e, u > ej / _t
+- n > 0 / ej_#
+- t, k > ʔ
+- p > ʔ / [+low]_#
+- l > n (merger), but maybe not because l > ŋ after /u/
+- r > ŋ (merger)
+- What is going on with the -ŋ and -m rhymes? maybe there is a length distinction for e, o, and ɐ?
+- o > u / _[kŋ]
+
+
+- [ ] Figure out what's going on with “three” and “hide”
+- [ ] Investigate what is different about the two kinds of rhymes with -ŋ
+  
+
+* What happened in Challow?
+
+|----+---+----+------+----+----+----+---+----|
+|    | p | t  | k    | m  | n  | ŋ  | l | r  |
+|----+---+----+------+----+----+----+---+----|
+| i  |   |    | a/ak |    | an | an |   |    |
+| u  |   |    | u/ɔk | am |    | uŋ |   |    |
+| ɯ  |   |    |      |    |    |    |   |    |
+| e  |   |    |      |    |    |    |   |    |
+| o  |   |    | ok   |    |    |    | ə | an |
+| ɐ  |   |    |      |    |    |    |   | a  |
+| a  |   | at |      |    | i  | an |   |    |
+| aː |   |    |      |    |    |    |   |    |
+|----+---+----+------+----+----+----+---+----|
+
+
+- In closed syllables, in both Huishu and Challow, i > a
+- Must explain primary ik/uk. Perhaps i > ic / _#, then k > ʔ / _# in Huishu, then c > k / _# in both Challow and Huishu, then i > a / _k in Challow but the difference is still not explained
+- i > a before nasals, analogous to Huishu i > ɐ before nasals
+- an > i, parallel to Huishu an > ej ([+low] > ej / _[ltn])
+
+
+* What Happened in Tusom
+
+1. i > ɯ
+2. a, e > i
+3. o > u
+4. u > y (not clear what is going on here; check)
+5. ɨ > y
+6. aj > i
+7. aw > ɯ
+8. ej > a
+9. ew > uə (maybe ew > ow > uə)
+10. oj > y or uj
+11. ow > uə
+
+
+* What Happened in Ukhrul
+
+1. e > i
+2. ɨ > u
+3. oj, ow > uj (distinction in maintained in Luhuppa)
+
+
+* What Happened in Phadang
+
+Pretty conservative.
+
+1. i > e
+2. o > u (merger)
+3. ɨ > uj
+4. ej > i (shared with Kachai)
+5. ew > aw
+6. oj is preserved
+7. ow > ew
+
+
+* What Happened in Khangoi
+
+1. ɨ > u (shared with Ukhrul [maybe], Kongai, Huishu, Challow, maybe C, N, L)
+2. aj > i (shared with Kongai, Tusom [maybe])
+3. aw > a
+4. ew > o
+5. oj preserved or becomes ej
+6. ow > aw (shared with Challow, Champhung, NTk, CTk)
+
+   
+
+* General observations
+
+"cattle" may actually be *si
+
+"elephant" may actually be *pwɯ
+
+*ɨ is not clearly distinguished from *u. Maybe reconstruct *ɯ only when either N Tk, Luhuppa, or Kongai is ɯ
+
+Luhuppa-Champhung-maybe Ukhrul-maybe N. Tangkhul-maybe C. Tangkhul
+u > ɯ
+Could be two-step process:
+1. u > wɯ (all languages)
+2. w > 0 / _ɯ (Luhuppa, Champhung)
+
+Have to look into allophony of Ukhrul /u/
+
+Huishu-Challow
+aj > ej
+0 > k / [ui]_
+
+Khangoi-Kongai-Tusom
+aj > i
+
+
+Kachai-Phadang
+ej > i
+
+C Tangkhul-N Tangkhul-Luhuppa-Challow
+ej > aj
+
+No merger with *aj imn Challow
+
+Kachai-Challow
+ew > i
+
+C. Tangkhul-N. Tangkhul-Champhung-Challow-Khangoi
+ow > aw
+
+No merger with *aw in Khangoi, 

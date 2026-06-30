@@ -2,6 +2,11 @@
 /*eslint no-undef: "error"*/
 
 $(document).ready(function () {
+  console.log('Document ready - comparator.js loaded');
+  
+  // Track checked rows for reflexes and potcogs (by refid)
+  var checkedReflexes = new Set();
+  var checkedPotcogs = new Set();
   
   function newReflex() {
     $.ajax({
@@ -47,7 +52,7 @@ $(document).ready(function () {
       },
       dataType: 'json'
     });
-    reflexes.ajax.reload();
+    reflexes.ajax.reload(null, false);
     console.log('Insert langid:' + langid + ' sourceid:' + sourceid + ' form:' + form + ' gloss:' + gloss);
     $(this).dialog('close');
   }
@@ -133,6 +138,92 @@ $(document).ready(function () {
   }
 
   //////////////////////////////////////////
+  // Add checked reflexes to cognate sets
+  //////////////////////////////////////////
+
+  function addCheckedReflexesToSet() {
+    var protoSelection = protoforms.rows({ selected: true }).data();
+    if (protoSelection.length === 0) {
+      alert('Please select a reconstruction first.');
+      return;
+    }
+    if (checkedReflexes.size === 0) {
+      alert('Please check one or more reflexes first (spacebar to toggle).');
+      return;
+    }
+    var refids = Array.from(checkedReflexes);
+    for (var i = 0; i < refids.length; i++) {
+      for (var j = 0; j < protoSelection.length; j++) {
+        var refid = refids[i];
+        var prefid = protoSelection[j][0];
+        var plangid = protoSelection[j][1];
+        console.log('Adding checked ' + refid + ' to ' + prefid + ' in ' + plangid);
+        $.ajax({
+          url: '/addsupporting',
+          data: {
+            refid: refid,
+            prefid: prefid,
+            plangid: plangid
+          },
+          dataType: 'html',
+          success: popupSupportingDialog,
+          context: {
+            refid: refid,
+            prefid: prefid,
+            plangid: plangid
+          }
+        });
+      }
+    }
+    // Clear checked reflexes and update checkboxes in the table
+    checkedReflexes.clear();
+    $('#reflexes tbody .row-checkbox').prop('checked', false);
+  }
+
+  //////////////////////////////////////////
+  // Add checked potential cognates to cognate sets
+  //////////////////////////////////////////
+
+  function addCheckedPotcogsToSet() {
+    var protoSelection = protoforms.rows({ selected: true }).data();
+    if (protoSelection.length === 0) {
+      alert('Please select a reconstruction first.');
+      return;
+    }
+    if (checkedPotcogs.size === 0) {
+      alert('Please check one or more potential cognates first (spacebar to toggle).');
+      return;
+    }
+    var refids = Array.from(checkedPotcogs);
+    for (var i = 0; i < refids.length; i++) {
+      for (var j = 0; j < protoSelection.length; j++) {
+        var refid = refids[i];
+        var prefid = protoSelection[j][0];
+        var plangid = protoSelection[j][1];
+        console.log('Adding checked potcog ' + refid + ' to ' + prefid + ' in ' + plangid);
+        $.ajax({
+          url: '/addsupporting',
+          data: {
+            refid: refid,
+            prefid: prefid,
+            plangid: plangid
+          },
+          dataType: 'html',
+          success: popupSupportingDialog,
+          context: {
+            refid: refid,
+            prefid: prefid,
+            plangid: plangid
+          }
+        });
+      }
+    }
+    // Clear checked potcogs and update checkboxes in the table
+    checkedPotcogs.clear();
+    $('#potcogs tbody .row-checkbox').prop('checked', false);
+  }
+
+  //////////////////////////////////////////
   // Remove reflexes from cognate sets
   //////////////////////////////////////////
   
@@ -171,7 +262,7 @@ $(document).ready(function () {
   }
   
   function reloadSupporting() {
-    supporting.ajax.reload();
+    supporting.ajax.reload(null, false);
   }
 
   //////////////////////////////////////////
@@ -182,9 +273,14 @@ $(document).ready(function () {
     var selection = reflexes.rows({
       selected: true
     }).data();
+    // Save scroll position before editing
+    var scrollBody = $('#reflexes').closest('.dataTables_scrollBody');
+    var scrollPos = scrollBody.scrollTop();
+    
     for (var i = 0; i < selection.length; i++) {
       $.ajax({
         refid: selection[i][1],
+        scrollPos: scrollPos,
         url: '/reflexdialog',
         data: {
           langid: selection[i][0],
@@ -201,9 +297,10 @@ $(document).ready(function () {
   
   function editReflexDialog(data) {
     var refid = this.refid;
+    var scrollPos = this.scrollPos;
     $('#dialogs').append(data);
     console.log('#edit' + refid + ' reflex');
-    $('#edit' + refid).data('refid', refid).dialog({
+    $('#edit' + refid).data('refid', refid).data('scrollPos', scrollPos).dialog({
       title: 'Edit Reflex',
       buttons: [{
         text: 'Update',
@@ -222,8 +319,10 @@ $(document).ready(function () {
 
   function updateReflex() {
     var refid = $(this).data('refid');
+    var scrollPos = $(this).data('scrollPos');
     var form = $('#editform' + refid).val();
     var gloss = $('#editgloss' + refid).val();
+    var dialogToClose = $(this);
     $.ajax({
       type: 'GET',
       url: '/updatereflex',
@@ -232,23 +331,25 @@ $(document).ready(function () {
         form: form,
         gloss: gloss
       },
-      dataType: 'json'
+      dataType: 'json',
+      success: function() {
+        reflexes.ajax.reload(function() {
+          // Restore scroll position after reload completes
+          var scrollBody = $('#reflexes').closest('.dataTables_scrollBody');
+          scrollBody.scrollTop(scrollPos);
+        }, false);
+        console.log('Update ' + refid + ' ' + form + ' ' + gloss);
+        dialogToClose.dialog('close');
+      }
     });
-    reflexes.ajax.reload();
-    console.log('Update ' + refid + ' ' + form + ' ' + gloss);
-    $(this).dialog('close');
   }
 
   //////////////////////////////////////////
-  // Find Potential Cognates
+  // Find Potential Cognates (auto-triggered on reflex selection)
   //////////////////////////////////////////
 
-  function findPotCogs() {
-    var selection = reflexes.rows({
-      selected: true
-    }).data();
-    if (selection.length === 0) {
-      alert('Please select a reflex first.');
+  function findPotCogsForSelection(selection) {
+    if (!selection || selection.length === 0) {
       return;
     }
     // Data columns: [0]=langid, [1]=refid, [2]=lname, [3]=ipaform, [4]=gloss, [5]=is_supporting, [6]=form
@@ -266,25 +367,22 @@ $(document).ready(function () {
       success: updatePotCogs,
       error: function(xhr, status, error) {
         console.error('Error finding potential cognates:', error);
-        alert('Error finding potential cognates. See console for details.');
       }
     });
   }
 
   function updatePotCogs() {
-    potcogs.ajax.reload();
+    // Reset sort order to similarity (column 6) ascending before reloading
+    // Use order() then draw() to ensure the new order is sent to server
+    potcogs.order([6, 'asc']).draw();
   }
 
   //////////////////////////////////////////
-  // Find Potential Reconstructions
+  // Find Potential Reconstructions (auto-triggered on reflex selection)
   //////////////////////////////////////////
 
-  function findPotRecons() {
-    var selection = reflexes.rows({
-      selected: true
-    }).data();
-    if (selection.length === 0) {
-      alert('Please select a reflex first.');
+  function findPotReconsForSelection(selection) {
+    if (!selection || selection.length === 0) {
       return;
     }
     // Data columns: [0]=langid, [1]=refid, [2]=lname, [3]=ipaform, [4]=gloss, [5]=is_supporting, [6]=form
@@ -304,11 +402,10 @@ $(document).ready(function () {
         $('#protoforms_wrapper input.column-filter').val('');
         // Reset sort order to column 0 (ID/similarity) ascending
         protoforms.order([0, 'asc']);
-        protoforms.ajax.reload();
+        protoforms.ajax.reload(null, false);
       },
       error: function(xhr, status, error) {
         console.error('Error finding potential reconstructions:', error);
-        alert('Error finding potential reconstructions. See console for details.');
       }
     });
   }
@@ -333,7 +430,7 @@ $(document).ready(function () {
         },
         success: function() {
           console.log('Deleted reflex');
-          reflexes.ajax.reload();
+          reflexes.ajax.reload(null, false);
         }
       });
     });
@@ -344,15 +441,21 @@ $(document).ready(function () {
   ///////////////////////////////////////////////////////////////////////////////
 
   function newEtymon() {
+    console.log('newEtymon called');
     // Fetch dialog HTML from server (just need proto-languages list)
     $.ajax({
       url: '/newetymondialog',
       dataType: 'html',
-      success: newEtymonDialog
+      success: newEtymonDialog,
+      error: function(xhr, status, error) {
+        console.error('newEtymon AJAX error:', status, error);
+      }
     });
   }
 
   function newEtymonDialog(data) {
+    // Remove any existing dialog first to avoid duplicate IDs
+    $('#newset').dialog('destroy').remove();
     $('#dialogs').append(data);
     $('#newset').dialog({
       title: 'New Etymon',
@@ -366,7 +469,10 @@ $(document).ready(function () {
         click: function() {
           $(this).dialog('close');
         }
-      }]
+      }],
+      close: function() {
+        $(this).dialog('destroy').remove();
+      }
     });
   }
 
@@ -375,6 +481,11 @@ $(document).ready(function () {
     var protogloss = $('#protogloss').val();
     var plangid = $('#plangid').val();
     var dialog = $(this);
+    
+    // Disable dialog buttons to prevent double-submit
+    var buttons = dialog.closest('.ui-dialog').find('.ui-dialog-buttonset button');
+    buttons.prop('disabled', true);
+    
     $.ajax({
       type: 'GET',
       url: '/addnewetymon',
@@ -385,26 +496,37 @@ $(document).ready(function () {
       },
       dataType: 'json',
       success: function(response) {
+        if (response.error) {
+          alert('Error adding etymon: ' + response.error);
+          buttons.prop('disabled', false);
+          return;
+        }
         if (response.prefid) {
           // Filter Reconstructions to show only the new etymon using server-side filter
           protoformsRefidsFilter = '';
           protoformsPrefidsFilter = response.prefid.toString();
           protoformsPotreconsMode = false;
-          protoforms.ajax.reload();
-          // Find potential reflexes for this new etymon
-          findPotReflexesForEtymon(response.prefid, plangid, protoform, protogloss);
+          protoforms.ajax.reload(null, false);
+          // Find potential reflexes for this new etymon (use ipaform from server response)
+          var ipaform = response.ipaform || protoform;
+          findPotReflexesForEtymon(response.prefid, plangid, ipaform, protogloss);
         }
         dialog.dialog('close');
+      },
+      error: function(xhr, status, error) {
+        var msg = 'Error adding etymon';
+        try {
+          var resp = JSON.parse(xhr.responseText);
+          if (resp.error) msg = resp.error;
+        } catch (e) {}
+        alert(msg);
+        buttons.prop('disabled', false);
       }
     });
   }
 
-  function findPotReflexes() {
-    var selection = protoforms.rows({
-      selected: true
-    }).data();
-    if (selection.length === 0) {
-      alert('Please select a reconstruction first.');
+  function findPotReflexesForSelection(selection) {
+    if (!selection || selection.length === 0) {
       return;
     }
     // Data columns: [0]=refid, [1]=plangid, [2]=lname, [3]=ipaform, [4]=gloss
@@ -426,12 +548,12 @@ $(document).ready(function () {
       },
       dataType: 'json',
       success: function(response) {
-        // Reload potcogs table to show potential reflexes
-        potcogs.ajax.reload();
+        // Reset sort order to similarity and reload potcogs table
+        // Use order() then draw() to ensure the new order is sent to server
+        potcogs.order([6, 'asc']).draw();
       },
       error: function(xhr, status, error) {
         console.error('Error finding potential reflexes:', error);
-        alert('Error finding potential reflexes. See console for details.');
       }
     });
   }
@@ -441,12 +563,18 @@ $(document).ready(function () {
   //////////////////////////////////////////
 
   function editProtoform() {
+    console.log('editProtoform called');
     var selection = protoforms.rows({
       selected: true
     }).data();
+    // Save scroll position before editing
+    var scrollBody = $('#protoforms').closest('.dataTables_scrollBody');
+    var scrollPos = scrollBody.scrollTop();
+    
     for (var i = 0; i < selection.length; i++) {
       $.ajax({
         refid: selection[i][0],
+        scrollPos: scrollPos,
         url: '/reflexdialog',
         data: {
           refid: selection[i][0],
@@ -462,13 +590,15 @@ $(document).ready(function () {
 
   function editProtoformDialog(data) {
     var refid = this.refid;
+    var scrollPos = this.scrollPos;
     $('#dialogs').append(data);
-    $('#edit' + refid).data('refid', refid).dialog({
+    $('#edit' + refid).data('refid', refid).data('scrollPos', scrollPos).dialog({
       title: 'Edit Protoform',
       buttons: [{
         text: 'Update',
         click: function() {
           var dlgRefid = $(this).data('refid');
+          var dlgScrollPos = $(this).data('scrollPos');
           var form = $('#editform' + dlgRefid).val();
           var gloss = $('#editgloss' + dlgRefid).val();
           var dialogToClose = $(this);
@@ -482,8 +612,12 @@ $(document).ready(function () {
             },
             dataType: 'json',
             success: function() {
-              protoforms.ajax.reload();
-              supporting.ajax.reload();
+              protoforms.ajax.reload(function() {
+                // Restore scroll position after reload completes
+                var scrollBody = $('#protoforms').closest('.dataTables_scrollBody');
+                scrollBody.scrollTop(dlgScrollPos);
+              }, false);
+              supporting.ajax.reload(null, false);
               dialogToClose.dialog('close');
             },
             error: function() {
@@ -572,7 +706,6 @@ $(document).ready(function () {
         morphs.removeClass('selected-morph');
         $(this).addClass('selected-morph');
         dialog.data('morph_index', clickedIndex);
-        console.log('morph_index in click: ' + clickedIndex);
       });
     }
     setupMorphClickHandlers();
@@ -587,7 +720,6 @@ $(document).ready(function () {
           ipaform: newIpaform
         },
         success: function(response) {
-          console.log('Form updated successfully');
           // Update the morphs display with new morphs
           var morphsHtml = '';
           for (var i = 0; i < response.morphs.length; i++) {
@@ -598,7 +730,7 @@ $(document).ready(function () {
           dialog.data('morph_index', 0);
           setupMorphClickHandlers();
           // Also reload supporting table to show updated form
-          supporting.ajax.reload();
+          supporting.ajax.reload(null, false);
         }
       });
     });
@@ -620,7 +752,6 @@ $(document).ready(function () {
 
   function updateMorphSelection(params) {
     return function() {
-      console.log('morph_index in update:' + params.dialog.data('morph_index'));
       $.ajax({
         url: '/updatemorph',
         data: {
@@ -629,9 +760,8 @@ $(document).ready(function () {
           morph_index: params.dialog.data('morph_index')
         },
         success: function() {
-          console.log('Update success. params.refid=' + params.refid);
           params.dialog.dialog('close');
-          supporting.ajax.reload();
+          supporting.ajax.reload(null, false);
         }
       })
     }
@@ -642,24 +772,38 @@ $(document).ready(function () {
   //////////////////////////////////////////
 
   function deleteProtoform() {
-    protoforms
-    .rows({
-      selected: true
-    })
-    .every(function() {
-      var prefid = this.data()[0];
-      console.log('Deleting prefid:' + prefid);
-      $.ajax({
-        url: '/deleteprotoform',
-        data: {
-          prefid: prefid
-        },
-        success: function() {
-          console.log('Deleted protoform');
-          protoforms.ajax.reload();
-          supporting.ajax.reload();
-        }
-      });
+    console.log('deleteProtoform called');
+    var selectedRows = protoforms.rows({ selected: true });
+    var selectedData = selectedRows.data();
+    
+    if (selectedData.length === 0) {
+      alert('Please select a reconstruction to delete.');
+      return;
+    }
+    
+    var prefid = selectedData[0][0];
+    var form = selectedData[0][3] || '';
+    var gloss = selectedData[0][4] || '';
+    
+    if (!confirm('Delete reconstruction "' + form + '" (' + gloss + ')?')) {
+      return;
+    }
+    
+    console.log('Deleting prefid:' + prefid);
+    $.ajax({
+      url: '/deleteprotoform',
+      data: {
+        prefid: prefid
+      },
+      success: function() {
+        console.log('Deleted protoform');
+        protoforms.ajax.reload(null, false);
+        supporting.ajax.reload(null, false);
+      },
+      error: function(xhr, status, error) {
+        console.log('Error deleting protoform: ' + error);
+        alert('Error deleting reconstruction: ' + error);
+      }
     });
   }
 
@@ -674,6 +818,7 @@ $(document).ready(function () {
   // Store potrecons mode for protoforms table (false = normal, true = show potential reconstructions)
   var protoformsPotreconsMode = false;
 
+  console.log('Initializing protoforms table...');
   var protoforms = $('#protoforms').DataTable({
     dom: 'Brtip',
     select: {
@@ -682,8 +827,9 @@ $(document).ready(function () {
     scrollY: '100px',  // Initial value, will be recalculated
     scrollCollapse: false,
     paging: true,
-    pageLength: 50,
+    pageLength: 200,
     deferRender: true,
+    orderCellsTop: true,  // Sort by clicking header row, not filter row
     columnDefs: [
       {
         targets: [1],
@@ -708,49 +854,59 @@ $(document).ready(function () {
     buttons: [
       {
         text: 'New Etymon',
-        action: newEtymon
+        action: function(e, dt, node, config) {
+          console.log('New Etymon button clicked');
+          newEtymon();
+        }
       },
       {
         text: 'Edit',
-        action: editProtoform
+        action: function(e, dt, node, config) {
+          console.log('Edit button clicked');
+          editProtoform();
+        }
       },
       {
         text: 'Delete',
-        action: deleteProtoform
-      },
-      {
-        text: 'Potential Reflexes',
-        action: findPotReflexes
+        action: function(e, dt, node, config) {
+          console.log('Delete button clicked');
+          deleteProtoform();
+        }
       },
       {
         text: 'Show All',
-        action: function() {
+        action: function(e, dt, node, config) {
+          console.log('Show All button clicked');
           protoformsRefidsFilter = '';
           protoformsPrefidsFilter = '';
           protoformsPotreconsMode = false;
-          protoforms.ajax.reload();
+          protoforms.ajax.reload(null, false);
         }
       }
     ]
   });
+  console.log('Protoforms table initialized:', protoforms);
 
   var reflexes = $('#reflexes').DataTable({
       dom: 'Brtip',
-      select: true,
+      select: {
+        style: 'single'
+      },
       serverSide: true,
       scrollY: '100px',  // Initial value, will be recalculated
       scrollCollapse: false,
       paging: true,
-      pageLength: 50,
+      pageLength: 200,
       deferRender: true,
+      orderCellsTop: true,  // Sort by clicking header row, not filter row
       ajax: {
         url: "/reflexes",
         type: "GET"
       },
       buttons: [
         {
-          text: 'Add to Set',
-          action: addReflexesToSupportingForms
+          text: 'Add Checked to Set',
+          action: addCheckedReflexesToSet
         },
         {
           text: "New",
@@ -765,34 +921,49 @@ $(document).ready(function () {
           action: deleteReflexes
         },
         {
-          text: 'Potential Cognates',
-          action: findPotCogs
-        },
-        {
-          text: 'Potential Reconstructions',
-          action: findPotRecons
-        },
-        {
           text: 'Protoforms',
           action: function() {
-            // Get selected reflex ids and filter protoforms table
-            var selection = reflexes.rows({ selected: true }).data().toArray();
-            if (selection.length === 0) {
-              alert('Please select one or more reflexes first.');
+            // Get checked reflex ids and filter protoforms table
+            if (checkedReflexes.size === 0) {
+              alert('Please check one or more reflexes first (spacebar to toggle).');
               return;
             }
-            // data[1] is refid
-            var refids = selection.map(function(row) { return row[1]; });
+            var refids = Array.from(checkedReflexes);
             protoformsRefidsFilter = refids.join(',');
             protoformsPotreconsMode = false;
-            protoforms.ajax.reload();
+            protoforms.ajax.reload(null, false);
+          }
+        },
+        {
+          text: 'Clear Checks',
+          action: function() {
+            checkedReflexes.clear();
+            reflexes.rows().invalidate().draw(false);
           }
         }
       ],
-      columnDefs: [{
-        targets: [0, 1, 5, 6],  // Hide langid, refid, is_supporting, and ipaform columns
-        visible: false,
-      }],
+      // Server returns: [langid, refid, lname, ipaform, gloss, is_supporting, form]
+      // Table has 8 columns: [checkbox, langid, refid, lname, ipaform, gloss, is_supporting, form]
+      columns: [
+        {
+          data: null,
+          orderable: false,
+          className: 'checkbox-column',
+          render: function(data, type, row, meta) {
+            // row[1] is refid
+            var refid = row[1];
+            var checked = checkedReflexes.has(refid) ? 'checked' : '';
+            return '<input type="checkbox" class="row-checkbox" data-refid="' + refid + '" ' + checked + '>';
+          }
+        },
+        { data: 0, visible: false },  // langid
+        { data: 1, visible: false },  // refid
+        { data: 2 },                   // lname (Language)
+        { data: 3 },                   // ipaform (Form)
+        { data: 4 },                   // gloss
+        { data: 5, visible: false },  // is_supporting (InSet)
+        { data: 6, visible: false }   // form (Form orig)
+      ],
       createdRow: function(row, data, dataIndex) {
         // data[5] is is_supporting (1 if in cognate set, 0 otherwise)
         if (data[5] === 1) {
@@ -801,40 +972,101 @@ $(document).ready(function () {
       }
     });
     
+    // Handle checkbox clicks in reflexes table
+    $('#reflexes tbody').on('click', '.row-checkbox', function(e) {
+      e.stopPropagation();  // Don't trigger default row selection behavior
+      var refid = parseInt($(this).data('refid'));
+      if (this.checked) {
+        checkedReflexes.add(refid);
+      } else {
+        checkedReflexes.delete(refid);
+      }
+      // Select the row that contains this checkbox
+      var row = $(this).closest('tr');
+      reflexes.rows().deselect();  // Deselect all rows first (single selection mode)
+      reflexes.row(row).select();  // Select this row
+    });
+    
     var potcogs = $('#potcogs').DataTable({
       dom: 'Brtip',
-      select: true,
+      select: {
+        style: 'single'
+      },
       serverSide: true,
       scrollY: '100px',  // Initial value, will be recalculated
       scrollCollapse: false,
       paging: true,
-      pageLength: 50,
+      pageLength: 200,
       deferRender: true,
+      orderCellsTop: true,  // Sort by clicking header row, not filter row
+      order: [[6, 'asc']],  // Order by sim (column 6) ascending (lowest distance = best match)
       ajax: {
         url: "/potcogs",
         type: "GET"
       },
       buttons: [
         {
-          text: "Add to Set",
-          action: addPotCogsToSupportingForms
+          text: "Add Checked to Set",
+          action: addCheckedPotcogsToSet
+        },
+        {
+          text: 'Clear Checks',
+          action: function() {
+            checkedPotcogs.clear();
+            potcogs.rows().invalidate().draw(false);
+          }
         }
       ],
-      columnDefs: [{
-        targets: [0, 1, 5],
-        visible: false
-      }]
+      // Server returns: [langid, refid, lname, ipaform, gloss, sim]
+      // Table has 7 columns: [checkbox, langid, refid, lname, ipaform, gloss, sim]
+      columns: [
+        {
+          data: null,
+          orderable: false,
+          className: 'checkbox-column',
+          render: function(data, type, row, meta) {
+            // row[1] is refid
+            var refid = row[1];
+            var checked = checkedPotcogs.has(refid) ? 'checked' : '';
+            return '<input type="checkbox" class="row-checkbox" data-refid="' + refid + '" ' + checked + '>';
+          }
+        },
+        { data: 0, visible: false },  // langid
+        { data: 1, visible: false },  // refid
+        { data: 2 },                   // lname (Language)
+        { data: 3 },                   // ipaform (Form)
+        { data: 4 },                   // gloss
+        { data: 5, visible: false }   // sim
+      ]
+    });
+    
+    // Handle checkbox clicks in potcogs table
+    $('#potcogs tbody').on('click', '.row-checkbox', function(e) {
+      e.stopPropagation();  // Don't trigger default row selection behavior
+      var refid = parseInt($(this).data('refid'));
+      if (this.checked) {
+        checkedPotcogs.add(refid);
+      } else {
+        checkedPotcogs.delete(refid);
+      }
+      // Select the row that contains this checkbox
+      var row = $(this).closest('tr');
+      potcogs.rows().deselect();  // Deselect all rows first (single selection mode)
+      potcogs.row(row).select();  // Select this row
     });
     
     var supporting = $('#supporting').DataTable({
       dom: 'Brtip',
-      select: true,
+      select: {
+        style: 'single'
+      },
       serverSide: true,
       scrollY: '100px',  // Initial value, will be recalculated
       scrollCollapse: false,
       paging: true,
-      pageLength: 50,
+      pageLength: 200,
       deferRender: true,
+      orderCellsTop: true,  // Sort by clicking header row, not filter row
       columnDefs: [{
         targets: [4],
         visible: false,
@@ -919,29 +1151,316 @@ $(document).ready(function () {
     setupColumnFilters(protoforms, 'protoforms');
     setupColumnFilters(supporting, 'supporting');
     
+    // Prevent clicks on filter inputs from triggering column sorting
+    $(document).on('click', '.column-filter', function(e) {
+      e.stopPropagation();
+    });
+    
+    //////////////////////////////////////////
+    // Initial table focus and selection
+    //////////////////////////////////////////
+    
+    // Select first row in each table after initial data load
+    function selectFirstRowOnLoad(table) {
+      table.one('draw', function() {
+        var allRows = table.rows().indexes().toArray();
+        if (allRows.length > 0 && table.rows({ selected: true }).indexes().toArray().length === 0) {
+          table.row(allRows[0]).select();
+        }
+      });
+    }
+    
+    // Set up initial selection for all tables
+    selectFirstRowOnLoad(reflexes);
+    selectFirstRowOnLoad(protoforms);
+    selectFirstRowOnLoad(potcogs);
+    selectFirstRowOnLoad(supporting);
+    
+    //////////////////////////////////////////
+    // Auto-trigger potential cognates/reflexes on selection
+    //////////////////////////////////////////
+    
+    // When a reflex is selected, automatically find potential cognates AND potential reconstructions
+    reflexes.on('select', function(e, dt, type, indexes) {
+      var selection = reflexes.rows(indexes).data().toArray();
+      findPotCogsForSelection(selection);
+      findPotReconsForSelection(selection);
+    });
+    
+    // When a protoform/reconstruction is selected, automatically find potential reflexes
     protoforms.on('select', function(e, dt, type, indexes) {
-      var prefid = protoforms.rows(indexes).data().toArray()[0][0];
+      var selection = protoforms.rows(indexes).data().toArray();
+      var prefid = selection[0][0];
       $('#protoforms').data('prefid', prefid);
       supporting.draw();
+      // Auto-trigger potential reflexes
+      findPotReflexesForSelection(selection);
     });
+    
+    //////////////////////////////////////////
+    // Keyboard Shortcuts
+    //////////////////////////////////////////
+    
+    // Track which table is currently focused
+    var focusedTable = null;
+    var tableMap = {
+      'L': { table: reflexes, id: 'reflexes', name: 'Reflexes (Lexicon)' },
+      'R': { table: protoforms, id: 'protoforms', name: 'Reconstructions' },
+      'P': { table: potcogs, id: 'potcogs', name: 'Potential Cognates' },
+      'S': { table: supporting, id: 'supporting', name: 'Supporting Forms' }
+    };
+    
+    // Visual indicator for focused table
+    function setFocusedTable(tableKey) {
+      // Remove focus indicator from all tables
+      $('.table-container').removeClass('table-focused');
+      
+      if (tableKey && tableMap[tableKey]) {
+        focusedTable = tableMap[tableKey];
+        $('#' + focusedTable.id).closest('.table-container').addClass('table-focused');
+        
+        // If no row is selected, select the first row
+        var selectedRows = focusedTable.table.rows({ selected: true }).indexes().toArray();
+        if (selectedRows.length === 0) {
+          var allRows = focusedTable.table.rows().indexes().toArray();
+          if (allRows.length > 0) {
+            focusedTable.table.row(allRows[0]).select();
+          }
+        }
+      }
+    }
+    
+    // Select next/previous row in focused table
+    function selectAdjacentRow(direction) {
+      if (!focusedTable) {
+        alert('Press L, R, P, or S to focus a table first.');
+        return;
+      }
+      
+      var table = focusedTable.table;
+      var tableId = focusedTable.id;
+      
+      // Get all visible rows (tbody tr elements)
+      var $rows = $('#' + tableId + ' tbody tr');
+      var rowCount = $rows.length;
+      
+      if (rowCount === 0) return;
+      
+      // Find currently selected row by looking for the 'selected' class
+      var currentIndex = -1;
+      $rows.each(function(idx) {
+        if ($(this).hasClass('selected')) {
+          currentIndex = idx;
+          return false; // break
+        }
+      });
+      
+      var newIndex;
+      if (currentIndex === -1) {
+        // No selection, select first or last row depending on direction
+        newIndex = direction === 1 ? 0 : rowCount - 1;
+      } else {
+        newIndex = currentIndex + direction;
+        // Bounds check
+        if (newIndex < 0) newIndex = 0;
+        if (newIndex >= rowCount) newIndex = rowCount - 1;
+      }
+      
+      // Deselect all rows and select the new one using DataTables API
+      table.rows().deselect();
+      table.row($rows[newIndex]).select();
+      
+      // Scroll to make the selected row visible
+      $rows[newIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    
+    // Edit dialog for currently selected item
+    function editSelectedItem() {
+      if (!focusedTable) {
+        alert('Press L, R, P, or S to focus a table first.');
+        return;
+      }
+      
+      var table = focusedTable.table;
+      var selection = table.rows({ selected: true }).data();
+      
+      if (selection.length === 0) {
+        alert('Please select an item first.');
+        return;
+      }
+      
+      // Trigger the appropriate edit function based on focused table
+      if (focusedTable.id === 'reflexes') {
+        editReflexes();
+      } else if (focusedTable.id === 'protoforms') {
+        editProtoform();
+      } else if (focusedTable.id === 'supporting') {
+        editMorphOfSupportingForm();
+      } else if (focusedTable.id === 'potcogs') {
+        // Potcogs doesn't have an edit function, could add item to set instead
+        alert('Use "A" to add potential cognates to a set.');
+      }
+    }
+    
+    // Toggle checkbox on selected row in reflexes or potcogs
+    function toggleSelectedCheckbox() {
+      if (!focusedTable) return;
+      
+      if (focusedTable.id === 'reflexes') {
+        var selectedRowIndexes = reflexes.rows({ selected: true }).indexes().toArray();
+        var selectedRows = reflexes.rows({ selected: true }).data().toArray();
+        if (selectedRows.length > 0) {
+          var refid = selectedRows[0][1];  // refid is at index 1
+          if (checkedReflexes.has(refid)) {
+            checkedReflexes.delete(refid);
+          } else {
+            checkedReflexes.add(refid);
+          }
+          // Update just the checkbox in the row without full invalidate/draw
+          var checkbox = reflexes.row(selectedRowIndexes[0]).node().querySelector('.row-checkbox');
+          if (checkbox) {
+            checkbox.checked = checkedReflexes.has(refid);
+          }
+        }
+      } else if (focusedTable.id === 'potcogs') {
+        var selectedRowIndexes = potcogs.rows({ selected: true }).indexes().toArray();
+        var selectedRows = potcogs.rows({ selected: true }).data().toArray();
+        if (selectedRows.length > 0) {
+          var refid = selectedRows[0][1];  // refid is at index 1
+          if (checkedPotcogs.has(refid)) {
+            checkedPotcogs.delete(refid);
+          } else {
+            checkedPotcogs.add(refid);
+          }
+          // Update just the checkbox in the row without full invalidate/draw
+          var checkbox = potcogs.row(selectedRowIndexes[0]).node().querySelector('.row-checkbox');
+          if (checkbox) {
+            checkbox.checked = checkedPotcogs.has(refid);
+          }
+        }
+      }
+    }
+    
+    // Add checked items to reconstruction/etymon (A key)
+    function addCheckedToSet() {
+      // Check if a reconstruction is selected
+      var protoSelection = protoforms.rows({ selected: true }).data();
+      if (protoSelection.length === 0) {
+        alert('Please select a reconstruction/etymon first (focus Reconstructions with R and select one).');
+        return;
+      }
+      
+      // Add all checked reflexes and potcogs
+      var hasChecked = checkedReflexes.size > 0 || checkedPotcogs.size > 0;
+      if (!hasChecked) {
+        alert('Please check one or more items first (spacebar to toggle checkbox on selected row).');
+        return;
+      }
+      
+      if (checkedReflexes.size > 0) {
+        addCheckedReflexesToSet();
+      }
+      if (checkedPotcogs.size > 0) {
+        addCheckedPotcogsToSet();
+      }
+      
+      // Return focus to Reflexes pane after adding
+      setFocusedTable('L');
+    }
+    
+    // Global keyboard handler
+    $(document).on('keydown', function(e) {
+      // Ignore if typing in an input field or focused on dialog elements
+      if ($(e.target).is('input, textarea, select')) {
+        return;
+      }
+      // Ignore if focus is inside a dialog (but not on the main page tables)
+      if ($(e.target).closest('.ui-dialog').length && !$(e.target).closest('.table-container').length) {
+        return;
+      }
+      
+      // Ignore if any modifier key is pressed (Ctrl, Alt, Meta/Command)
+      if (e.ctrlKey || e.altKey || e.metaKey) {
+        return;
+      }
+      
+      var key = e.key.toUpperCase();
+      
+      // Table focus shortcuts: L, R, P, S
+      if (tableMap[key]) {
+        e.preventDefault();
+        setFocusedTable(key);
+        return;
+      }
+      
+      // Navigation shortcuts: > and < (or . and ,) or Arrow keys
+      if (e.key === '>' || e.key === '.' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectAdjacentRow(1);  // Next row
+        return;
+      }
+      if (e.key === '<' || e.key === ',' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectAdjacentRow(-1);  // Previous row
+        return;
+      }
+      
+      // Spacebar: toggle checkbox on selected row (reflexes or potcogs only)
+      if (e.key === ' ') {
+        e.preventDefault();
+        toggleSelectedCheckbox();
+        return;
+      }
+      
+      // Edit shortcut: E
+      if (key === 'E') {
+        e.preventDefault();
+        editSelectedItem();
+        return;
+      }
+      
+      // Add to set shortcut: A - adds all checked items from reflexes and potcogs
+      if (key === 'A') {
+        e.preventDefault();
+        addCheckedToSet();
+        return;
+      }
+    });
+    
+    // Focus Reflexes table initially (after a short delay to ensure rendering)
+    setTimeout(function() {
+      setFocusedTable('L');
+    }, 500);
     
     //////////////////////////////////////////
     // Correspondence Sets Dialog
     //////////////////////////////////////////
     
     $('#correspondence-sets-btn').click(function() {
+      // Remove any existing dialog first to prevent duplicates
+      var existingDialog = $('#correspondence-sets-dialog');
+      if (existingDialog.length) {
+        if (existingDialog.hasClass('ui-dialog-content')) {
+          existingDialog.dialog('destroy');
+        }
+        existingDialog.remove();
+      }
+      
       $.ajax({
         url: '/correspondence_sets_dialog',
         dataType: 'html',
         success: function(html) {
           $('#dialogs').append(html);
           
+          // Get reference to dialog before it's moved by jQuery UI
+          var dialog = $('#correspondence-sets-dialog');
+          var select = dialog.find('#protolang-select');
+          
           // Load proto-languages dropdown
           $.ajax({
             url: '/protolanguages',
             dataType: 'json',
             success: function(data) {
-              var select = $('#protolang-select');
               data.forEach(function(lang) {
                 select.append($('<option>', {
                   value: lang.langid,
@@ -952,7 +1471,7 @@ $(document).ready(function () {
           });
           
           // Create dialog
-          $('#correspondence-sets-dialog').dialog({
+          dialog.dialog({
             title: 'Correspondence Sets',
             width: 900,
             height: 650,
@@ -962,9 +1481,9 @@ $(document).ready(function () {
             }
           });
           
-          // Load button handler
-          $('#load-corr-sets-btn').click(function() {
-            var plangid = $('#protolang-select').val();
+          // Load button handler - use scoped selector
+          dialog.find('#load-corr-sets-btn').click(function() {
+            var plangid = select.val();
             if (!plangid) {
               alert('Please select a proto-language first.');
               return;
@@ -1042,6 +1561,9 @@ $(document).ready(function () {
         var input = $('<input type="text" class="corr-filter-input" data-col="' + colIdx + '" placeholder="regex">')
           .on('input', function() {
             applyCorrespondenceFilters();
+          })
+          .on('click mousedown', function(e) {
+            e.stopPropagation(); // Prevent sorting when clicking in filter
           });
         td.append(input);
         filterRow.append(td);
@@ -1051,6 +1573,9 @@ $(document).ready(function () {
       var countInput = $('<input type="text" class="corr-filter-input" data-col="count" placeholder="regex">')
         .on('input', function() {
           applyCorrespondenceFilters();
+        })
+        .on('click mousedown', function(e) {
+          e.stopPropagation(); // Prevent sorting when clicking in filter
         });
       countTd.append(countInput);
       filterRow.append(countTd);
@@ -1062,6 +1587,10 @@ $(document).ready(function () {
       renderCorrespondenceRows(tbody, data.correspondence_sets, data.languages);
       table.append(tbody);
       container.append(table);
+      
+      // Unbind previous handlers to prevent duplicates, then rebind
+      container.off('click', '.sortable-header');
+      container.off('click', '.corr-set-row');
       
       // Click handler for sorting
       container.on('click', '.sortable-header', function(e) {
@@ -1111,14 +1640,29 @@ $(document).ready(function () {
         var row = $('<tr class="corr-set-row" data-idx="' + idx + '">');
         row.append('<td class="expand-icon">▶</td>');
         
+        // Languages that have data in this correspondence set
+        var langsWithData = corrSet.languages_with_data || [];
+        
         // Pattern cells
-        languages.forEach(function(lang) {
-          var phoneme = corrSet.pattern[lang] || '-';
+        languages.forEach(function(lang, langIdx) {
+          var phoneme = corrSet.pattern[lang] || '';
           var cell = $('<td class="pattern-cell">');
+          var hasData = langsWithData.indexOf(lang) !== -1;
+          
           if (phoneme === '-' || phoneme === '') {
-            cell.addClass('gap-cell').text('-');
+            if (hasData) {
+              // Language has data but gap in this correspondence - show empty set symbol
+              cell.addClass('gap-cell').text('∅');
+            } else {
+              // No data from this language at all - show em-dash and gray out
+              cell.addClass('no-data-cell').text('—');
+            }
           } else {
             cell.text(phoneme);
+            // Store data for double-click lookup
+            cell.data('lang', lang);
+            cell.data('phoneme', phoneme);
+            cell.addClass('phoneme-clickable');
           }
           row.append(cell);
         });
@@ -1138,6 +1682,16 @@ $(document).ready(function () {
         cognateSetsCell.append(cognateSetsContainer);
         cognateSetsRow.append(cognateSetsCell);
         tbody.append(cognateSetsRow);
+      });
+      
+      // Add double-click handler for phoneme cells
+      tbody.find('.phoneme-clickable').off('dblclick').on('dblclick', function(e) {
+        e.stopPropagation();
+        var lang = $(this).data('lang');
+        var phoneme = $(this).data('phoneme');
+        if (lang && phoneme) {
+          showPhonemeDialog(lang, phoneme);
+        }
       });
     }
     
@@ -1224,11 +1778,12 @@ $(document).ready(function () {
       var protoformInput = $('<input type="text" class="protoform-input">')
         .val(cogSet.proto_form)
         .data('prefid', cogSet.prefid)
-        .on('change', function() {
+        .on('change', function(e) {
+          e.stopPropagation();
           updateProtoform($(this).data('prefid'), $(this).val(), null);
         })
-        .on('click', function(e) {
-          e.stopPropagation(); // Prevent row click
+        .on('click mousedown focus keydown keyup', function(e) {
+          e.stopPropagation(); // Prevent event bubbling to row
         });
       header.append(protoformInput);
       
@@ -1236,11 +1791,12 @@ $(document).ready(function () {
       var glossInput = $('<input type="text" class="gloss-input">')
         .val(cogSet.proto_gloss)
         .data('prefid', cogSet.prefid)
-        .on('change', function() {
+        .on('change', function(e) {
+          e.stopPropagation();
           updateProtoform($(this).data('prefid'), null, $(this).val());
         })
-        .on('click', function(e) {
-          e.stopPropagation(); // Prevent row click
+        .on('click mousedown focus keydown keyup', function(e) {
+          e.stopPropagation(); // Prevent event bubbling to row
         });
       header.append(glossInput);
       header.append('<span class="gloss-label">"</span>');
@@ -1374,6 +1930,79 @@ $(document).ready(function () {
         },
         error: function() {
           alert('Error updating protoform');
+        }
+      });
+    }
+    
+    // Show dialog with all cognate sets containing a specific phoneme for a language
+    function showPhonemeDialog(language, phoneme) {
+      // Get the current proto-language ID from the select
+      var plangid = $('#protolang-select').val();
+      if (!plangid) {
+        alert('Please select a proto-language first');
+        return;
+      }
+      
+      // Fetch cognate sets for this language/phoneme combination
+      $.ajax({
+        url: '/cognates_by_phoneme',
+        data: {
+          plangid: plangid,
+          language: language,
+          phoneme: phoneme
+        },
+        dataType: 'json',
+        success: function(data) {
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+          renderPhonemeDialog(data, language, phoneme);
+        },
+        error: function() {
+          alert('Error fetching cognate sets for phoneme');
+        }
+      });
+    }
+    
+    function renderPhonemeDialog(data, language, phoneme) {
+      // Remove any existing phoneme dialog
+      $('#phoneme-lookup-dialog').remove();
+      
+      var dialogHtml = '<div id="phoneme-lookup-dialog">' +
+        '<div class="phoneme-dialog-header">' +
+        '<strong>' + language + '</strong> /' + phoneme + '/ — ' + 
+        data.cognate_sets.length + ' cognate set(s)' +
+        '</div>' +
+        '<div class="phoneme-dialog-content"></div>' +
+        '</div>';
+      
+      $('#dialogs').append(dialogHtml);
+      
+      var content = $('#phoneme-lookup-dialog .phoneme-dialog-content');
+      
+      if (data.cognate_sets.length === 0) {
+        content.html('<p>No cognate sets found.</p>');
+      } else {
+        // Render each cognate set
+        data.cognate_sets.forEach(function(cogSet) {
+          // Create pattern from alignment column
+          var pattern = {};
+          if (cogSet.alignment && cogSet.column_index < cogSet.alignment.length) {
+            pattern = cogSet.alignment[cogSet.column_index];
+          }
+          content.append(renderCognateSet(cogSet, data.languages, pattern));
+        });
+      }
+      
+      $('#phoneme-lookup-dialog').dialog({
+        title: 'Cognate Sets with ' + language + ' /' + phoneme + '/',
+        width: Math.min(900, $(window).width() - 100),
+        height: Math.min(600, $(window).height() - 100),
+        modal: false,
+        position: { my: 'center', at: 'center', of: window },
+        close: function() {
+          $(this).dialog('destroy').remove();
         }
       });
     }
@@ -1534,7 +2163,7 @@ $(document).ready(function () {
           
           // Reload reflexes table after short delay
           setTimeout(function() {
-            reflexes.ajax.reload();
+            reflexes.ajax.reload(null, false);
             $('#upload-data-dialog').dialog('close');
           }, 1500);
         },

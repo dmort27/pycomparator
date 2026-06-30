@@ -291,6 +291,15 @@ table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
   border-radius: 3px;
 }
 
+.ui-dialog select {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
 /* Top toolbar */
 .top-toolbar {
   padding: 8px;
@@ -328,6 +337,8 @@ table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
+  z-index: 10;
 }
 
 .corr-header label {
@@ -563,6 +574,44 @@ table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
   color: #a0aec0;
 }
 
+/* Correspondence set pattern cells - gap vs no data */
+.corr-set-row .gap-cell {
+  color: #718096;
+  font-style: normal;
+}
+
+.corr-set-row .no-data-cell {
+  color: #cbd5e0;
+  background-color: #f7fafc;
+}
+
+.corr-set-row .phoneme-clickable {
+  cursor: pointer;
+}
+
+.corr-set-row .phoneme-clickable:hover {
+  background-color: #ebf8ff;
+  border-radius: 2px;
+}
+
+/* Phoneme lookup dialog */
+.phoneme-dialog-header {
+  padding: 8px 12px;
+  background-color: #ebf8ff;
+  border-bottom: 1px solid #bee3f8;
+  font-size: 12px;
+}
+
+.phoneme-dialog-content {
+  padding: 8px;
+  max-height: calc(100% - 50px);
+  overflow-y: auto;
+}
+
+#phoneme-lookup-dialog .cognate-set {
+  margin-bottom: 8px;
+}
+
 /* Remove button */
 .remove-cognate-btn {
   width: 18px;
@@ -656,6 +705,15 @@ table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
   padding: 8px 16px;
 }
 
+/* Focused table indicator (keyboard navigation) */
+.table-container.table-focused {
+  box-shadow: 0 0 0 3px #4299e1, 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.table-container.table-focused h3 {
+  background-color: #3182ce;
+}
+
 /* Scroller progress indicator */
 .DTS .dataTables_scrollBody {
   overflow-y: auto !important;
@@ -664,4 +722,29 @@ table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
 .DTS .dt-row-loading {
   color: #718096;
   font-style: italic;
+}
+
+
+/* Checkbox column styling */
+.checkbox-column {
+  width: 30px !important;
+  text-align: center;
+  padding: 4px !important;
+}
+
+.checkbox-column input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  margin: 0;
+}
+
+/* Ensure checkbox header has no filter input */
+th.checkbox-column input.column-filter {
+  display: none;
+}
+
+/* Checked row visual indicator (optional subtle highlight) */
+tr.checked-row {
+  background-color: #e6f3ff !important;
 }

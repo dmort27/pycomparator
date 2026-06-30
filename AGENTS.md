@@ -25,13 +25,16 @@ cd /Users/mortensen/Projects/pycomparator
 The cognate detection system uses pre-computed phonetic-semantic embeddings for fast similarity search:
 
 1. **Phonetic Embeddings**: TF-IDF on IPA character n-grams (1-3 chars) via panphon segmentation
-2. **Semantic Embeddings**: TF-IDF on gloss word n-grams (1-2 words)
+2. **Semantic Embeddings**: Dense sentence-transformer embeddings (all-MiniLM-L6-v2) - **captures synonymy!**
 3. **Combined Score**: `distance = α * phonetic_dist + (1-α) * semantic_dist`
+4. **Subgroup Penalty**: Non-subgroup languages get +1.0 added to distance, ensuring subgroup members rank first
 
 ### Key Parameters
 
 - **alpha**: Weight for phonetic vs semantic (0=semantic only, 1=phonetic only, **optimal=0.4**)
-- **Embedding dimensions**: 300 for both phonetic and semantic (PCA reduced from 1024)
+- **subgroup_penalty**: Additive penalty for non-subgroup languages (default=1.0)
+- **Phonetic dimension**: 300 (PCA reduced from 1024 TF-IDF features)
+- **Semantic dimension**: 384 (all-MiniLM-L6-v2 output)
 
 ### Alpha Optimization Results (832 cognate sets)
 
@@ -94,7 +97,8 @@ The system normalizes transcriptions to canonical IPA using `ipa_normalize.py`:
 - [x] Learn optimal alpha from ground-truth cognate sets (reflex_of table) ✓ Done: alpha=0.4
 - [x] IPA normalization for consistent phonetic matching ✓ Done: ipaform column
 - [x] Data upload feature for importing lexicon files ✓ Done: June 2026
-- [ ] Optional: sentence-transformers for higher-quality semantic embeddings
+- [x] Dense semantic embeddings (sentence-transformers) for synonymy ✓ Done: all-MiniLM-L6-v2
+- [x] Strong subgroup prioritization via additive penalty ✓ Done: subgroup_penalty=1.0
 - [ ] Optional: FAISS index for sub-linear search if lexicon grows large
 
 ## Data Upload Feature (June 2026)
@@ -155,3 +159,56 @@ Allows users to upload lexicon data files (CSV/TSV) with automatic IPA normaliza
 3. Added error callback for AJAX request to surface failures
 
 **Pattern to Follow**: All button actions that operate on selected rows should validate selection exists before accessing row data (see `findPotRecons()` for correct pattern).
+
+### New Etymon Dialog Fixes (June 2026)
+
+**Issue 1 - Duplicate Etymons**: Clicking "Add" button multiple times created duplicate database entries.
+
+**Root Cause**: AJAX request didn't disable the button during submission.
+
+**Fix Applied**: Disable dialog buttons during AJAX request:
+```javascript
+var buttons = dialog.closest('.ui-dialog').find('.ui-dialog-buttonset button');
+buttons.prop('disabled', true);
+// Re-enable on error: buttons.prop('disabled', false);
+```
+
+**Issue 2 - ipaform Parameter Mismatch**: `findPotReflexesForEtymon()` was passing raw `protoform` instead of IPA-normalized form.
+
+**Root Cause**: Server's `/addnewetymon` response didn't include the computed `ipaform`.
+
+**Fix Applied**:
+1. Modified `/addnewetymon` endpoint to return `ipaform` in response JSON
+2. Modified `addNewEtymon()` to use `response.ipaform` when calling `findPotReflexesForEtymon()`
+
+**Files Modified**:
+- `comparator.py`: Added `ipaform` to `/addnewetymon` response
+- `static/comparator.js`: Added button disabling, use server-provided ipaform
+
+### Potential Cognates Sorting Fix (June 2026)
+
+**Issue**: Subgroup matches with low similarity scores were not appearing at the top of the Potential Cognates table, even though server-side data was correctly ordered.
+
+**Root Cause**: The `potcogs` DataTable didn't have an explicit `order` property, so it defaulted to ordering by the first orderable column (Language name) instead of the similarity score column.
+
+**Fix Applied**: Added explicit ordering by similarity column in DataTable initialization:
+```javascript
+order: [[6, 'asc']],  // Order by sim (column 6) ascending (lowest distance = best match)
+```
+
+**File Modified**: `static/comparator.js`
+
+### Subgroup Penalty Fix - Proto-Language Ancestry (June 2026)
+
+**Issue**: Subgroup penalty was based on arbitrary `langsubgrp` numeric codes instead of actual linguistic relationships. For example, Kachai (Tangkhulic) was being grouped with Rongmei, Sema, Simi (non-Tangkhulic) because they shared the same `langsubgrp=4` value.
+
+**Root Cause**: Code used `lang_subgroups` dictionary based on `langnames.langsubgrp` column, which doesn't represent actual linguistic subgroups.
+
+**Fix Applied**: Changed to use `descendant_of` table relationships:
+1. At startup, build `lang_to_protos` mapping: langid → set of proto-language ancestor IDs
+2. In `find_potential_cognates()`, languages share a subgroup if they have any common proto-language ancestor
+3. Penalty only applied to languages that don't share any proto-ancestor with the query language
+
+**Result**: Searching from Kachai (Tangkhulic) now shows all 30 top results from Tangkhulic languages (Challow, Huishu, Ukhrul, Khangoi, Phadang, Tusom, etc.) instead of unrelated languages.
+
+**Files Modified**: `comparator.py`

@@ -1,0 +1,163 @@
+# Sound Laws for Proto-Tangkhulic Forward Reconstruction
+#
+# This file defines sound laws and a phylogenetic tree for applying them.
+# Laws map proto-forms to reflexes in daughter languages.
+# Leaf nodes use glottocodes that resolve to language IDs in the database.
+
+name: tangkhulic
+
+# Sound laws: [source, target, left_context, right_context]
+# - Empty string "" means "no constraint" for contexts
+# - Empty source "" means insertion; empty target "" means deletion
+# - Use \Z for word-final position in right context
+# Laws are sorted by source, then target
+laws:
+  # a-
+  a-lowering: ["a", "ɐ", "", "[mnŋptk]"]
+  a-to-e-final: ["a", "e", "", "\\Z"]
+  a-to-i-final: ["a", "i", "", "\\Z"]
+  a-to-u-final: ["a", "u", "", "\\Z"]
+
+  # aj-
+  aj-to-ej: ["aj", "ej", "", "\\Z"]
+  aj-to-ej-final: ["aj", "ej", "", "\\Z"]
+  aj-to-i: ["aj", "i", "", ""]
+  aj-to-ie: ["aj", "ie", "", "\\Z"]
+  aj-to-we-final: ["aj", "we", "", "\\Z"]
+
+  # aw-
+  aw-to-a-final: ["aw", "a", "", "\\Z"]
+  aw-to-o-final: ["aw", "o", "", "\\Z"]
+  aw-to-ow-final: ["aw", "ow", "", "\\Z"]
+  aw-to-turned-m: ["aw", "ɯ", "", "\\Z"]
+
+  # b-
+  b-to-p: ["b", "p", "", ""]
+  bw-to-v: ["bw", "v", "", ""]
+
+  # c-
+  c-to-ts: ["c", "ts", "", ""]
+
+  # dz-
+  dz-to-d: ["dz", "d", "", ""]
+  dz-to-r: ["d͡z", "r", "", ""]
+
+  # ej-
+  ej-to-a-final: ["ej", "a", "", "\\Z"]
+  ej-to-aj-final: ["ej", "aj", "", "\\Z"]
+  ej-to-e-final: ["ej", "e", "", "\\Z"]
+  ej-to-i-final: ["ej", "i", "", "\\Z"]
+  ej-to-u-final: ["ej", "u", "", "\\Z"]
+
+  # esh-
+  esh-to-s: ["ʃ", "s", "", ""]
+
+  i-to-a-before-k: ["i", "a", "k", "\\Z"]
+
+  # ow-
+  ow-to-ao-final: ["ow", "ao", "", "\\Z"]
+  ow-to-aw-final: ["ow", "aw", "", "\\Z"]
+  ow-to-e-final: ["ow", "e", "", "\\Z"]
+  ow-to-uj: ["ow", "uj", "", "\\Z"]
+  ow-to-uə: ["ow", "uə", "", ""]
+
+  # short-a-
+  short-a-to-a: ["ă", "a", "", ""]
+
+  # stop-
+  stop-to-glottal-final: ["[ptk]", "ʔ", "", "\\Z"]
+
+  # w-
+  w-between-k-and-ow: ["k", "w", "ow", "\\Z"]
+  w-to-h: ["w̥", "h", "", ""]
+
+  k-after-high: ["", "k", "[ui]", "\\Z"]
+
+# Phylogenetic tree: maps parent nodes to lists of children with their laws
+# Leaf nodes use glottocodes (e.g., phad1238) that resolve to database langids
+
+tree:
+  ROOT:
+    - child: nuc-tangkhul
+      laws:
+        - bw-to-v
+        - b-to-p
+    - child: east2902 # Tusom
+      laws:
+        - a-to-i-final
+        - ow-to-uə
+        - aj-to-ie
+        - aw-to-turned-m
+        - ej-to-a-final
+    - child: phadang-central
+      laws:
+        - dz-to-d
+    - child: kongai-northern
+      laws:
+        - aj-to-i
+  nuc-tangkhul:
+    - child: kachai-khangoi
+      laws:
+        - short-a-to-a
+    - child: champung-challow
+      laws:
+        - dz-to-r
+  phadang-central:
+    - child: phad1238 # Phadang
+      laws:
+        - ow-to-aw-final
+        - aj-to-ej-final
+        - aw-to-o-final
+        - ej-to-i-final
+    - child: gord1235 # C. Tangkhul
+      laws: []
+  kongai-northern:
+    - child: kong1298 # Kongai
+      laws:
+        - ow-to-ao-final
+        - ej-to-e-final
+    - child: nort3286 # N. Tangkhul
+      laws: []
+  kachai-khangoi:
+    - child: kach1286 # Kachai
+      laws:
+        - aj-to-we-final
+        - a-to-u-final
+        - w-between-k-and-ow
+        - ow-to-e-final
+        - aw-to-o-final
+        - ej-to-i-final
+    - child: khan1277 # Khangoi
+      laws:
+        - aw-to-a-final
+        - ow-to-aw-final
+        - aj-to-ej-final
+  champung-challow:
+    - child: luhuppa
+      laws:
+        - w-to-h
+        - a-lowering
+        - ow-to-uj
+    - child: challow-huishu
+      laws:
+        - k-after-high
+        - ej-to-u-final
+        - aj-to-ej
+        - a-to-e-final
+        - stop-to-glottal-final
+        - esh-to-s
+        - c-to-ts
+  challow-huishu:
+    - child: chal1279.1 # Huishu
+      laws:
+        - aj-to-ej-final
+        - aw-to-ow-final
+    - child: chal1279 # Challow
+      laws:
+        - ej-to-aj-final
+        - i-to-a-before-k
+  luhuppa:
+    - child: ukhr1238.1 # Luhuppa
+      laws: []
+    - child: ukhr1238 # Ukhrul
+      laws: []

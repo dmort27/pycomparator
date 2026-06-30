@@ -1,3 +1,10 @@
+# Set OpenMP/threading environment variables before importing numpy/sklearn
+# This prevents pthread_mutex_init errors on macOS (especially Apple Silicon)
+import os
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+
 import json
 import re
 import sqlite3
@@ -21,21 +28,68 @@ EMBEDDER_CACHE = "db/embedder_cache.pkl"
 
 # Load or build the embedder
 print("Loading cognate embedder...")
+import sqlite3 as _sqlite3
+_conn = _sqlite3.connect(DATABASE)
+_c = _conn.cursor()
+
+_cache_loaded = False
 if Path(EMBEDDER_CACHE).exists():
-    embedder = CognateEmbedder.load(EMBEDDER_CACHE)
-    # Load langids separately
+    try:
+        embedder = CognateEmbedder.load(EMBEDDER_CACHE)
+        # Load langids separately
+        _c.execute("SELECT refid, langid FROM reflexes")
+        _rows = _c.fetchall()
+        langid_map = {r[0]: r[1] for r in _rows}
+        langids = [langid_map.get(refid, -1) for refid in embedder.refids]
+        _cache_loaded = True
+    except RuntimeError as e:
+        print(f"Warning: {e}")
+        print("Rebuilding embedder cache...")
+        Path(EMBEDDER_CACHE).unlink()
+
+if not _cache_loaded:
+    embedder, langids = build_embedder_from_db(DATABASE, alpha=0.4)
+    embedder.save(EMBEDDER_CACHE)
+
+# Pre-load lookup data for potential cognates (cached at startup for fast queries)
+_c.execute("SELECT refid, langid, ipaform, gloss FROM reflexes")
+reflex_lookup = {r[0]: (r[1], r[2], r[3]) for r in _c.fetchall()}
+_c.execute("SELECT DISTINCT plangid FROM descendant_of")
+proto_langids = {r[0] for r in _c.fetchall()}
+
+# Build lang_to_protos: mapping from langid -> set of proto-language ancestors
+# This uses descendant_of relationships for actual linguistic groupings
+_c.execute("SELECT langid, plangid FROM descendant_of")
+lang_to_protos = {}
+for langid, plangid in _c.fetchall():
+    if langid not in lang_to_protos:
+        lang_to_protos[langid] = set()
+    lang_to_protos[langid].add(plangid)
+
+_conn.close()
+
+print(f"Done. Loaded {len(embedder.refids)} reflexes.")
+
+
+def regenerate_embeddings():
+    """
+    Regenerate all embeddings from the database.
+    Call this after bulk data changes.
+    """
+    global embedder, langids, reflex_lookup
+    print("Regenerating embeddings from database...")
+    embedder, langids = build_embedder_from_db(DATABASE, alpha=0.4)
+    embedder.save(EMBEDDER_CACHE)
+    
+    # Reload reflex_lookup
     import sqlite3 as _sqlite3
     _conn = _sqlite3.connect(DATABASE)
     _c = _conn.cursor()
-    _c.execute("SELECT refid, langid FROM reflexes")
-    _rows = _c.fetchall()
+    _c.execute("SELECT refid, langid, ipaform, gloss FROM reflexes")
+    reflex_lookup = {r[0]: (r[1], r[2], r[3]) for r in _c.fetchall()}
     _conn.close()
-    langid_map = {r[0]: r[1] for r in _rows}
-    langids = [langid_map.get(refid, -1) for refid in embedder.refids]
-else:
-    embedder, langids = build_embedder_from_db(DATABASE, alpha=0.4)
-    embedder.save(EMBEDDER_CACHE)
-print(f"Done. Loaded {len(embedder.refids)} reflexes.")
+    
+    print(f"Done. Regenerated embeddings for {len(embedder.refids)} reflexes.")
 
 
 def regexp(pattern, value):
@@ -94,7 +148,7 @@ def close_connection(exception):
 ##############################################################################
 
 
-def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: float, subgroup_bonus: float = 0.2) -> None:
+def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: float, subgroup_penalty: float = 1.0) -> None:
     """
     Find potential cognates using pre-computed embeddings.
     
@@ -103,7 +157,7 @@ def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: flo
         ipaform1: Normalized IPA form to match (without tones)
         gloss1: Gloss to match
         alpha: Weight for phonetic vs semantic (higher = more phonetic)
-        subgroup_bonus: Multiplier for same-subgroup matches (0.2 = 80% distance reduction)
+        subgroup_penalty: Additive penalty for languages not sharing a proto-language ancestor
     """
     # Update embedder alpha if different
     embedder.alpha = alpha
@@ -116,17 +170,28 @@ def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: flo
         langids=langids,
     )
     
-    # Build refid -> (langid, ipaform, gloss) lookup
-    c = get_db().cursor()
-    c.execute("SELECT refid, langid, ipaform, gloss FROM reflexes")
-    reflex_data = {r[0]: (r[1], r[2], r[3]) for r in c.fetchall()}
+    # Get proto-language ancestors for source language (e.g., Proto-Tangkhulic for Kachai)
+    source_protos = lang_to_protos.get(langid1, set())
     
-    # Build langid -> langsubgrp lookup for subgroup priority
-    c.execute("SELECT langid, langsubgrp FROM langnames")
-    lang_subgroups = {r[0]: r[1] for r in c.fetchall()}
-    source_subgroup = lang_subgroups.get(langid1, 0)
+    # Build results using cached lookups
+    results = []
+    for refid, dist in similar:
+        if refid in reflex_lookup:
+            langid2, ipaform2, gloss2 = reflex_lookup[refid]
+            # Apply subgroup penalty: ADD penalty to languages that don't share
+            # any proto-language ancestor with the source language
+            # This ensures languages from the same family (e.g., Tangkhulic) rank first
+            target_protos = lang_to_protos.get(langid2, set())
+            shares_proto = bool(source_protos & target_protos)  # set intersection
+            if not source_protos or not shares_proto:
+                dist = dist + subgroup_penalty
+            results.append((refid, langid2, ipaform2, gloss2, dist))
+    
+    # Re-sort by distance after applying penalty
+    results.sort(key=lambda x: x[4])
     
     # Ensure potcogs table exists and clear it
+    c = get_db().cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS "potcogs" (
          "langid" integer NOT NULL,
          "refid" integer NOT NULL PRIMARY KEY,
@@ -134,16 +199,6 @@ def find_potential_cognates(langid1: int, ipaform1: str, gloss1: str, alpha: flo
          "gloss" text,
          "sim" real NOT NULL)""")
     c.execute("DELETE FROM potcogs")
-    results = []
-    for refid, dist in similar:
-        if refid in reflex_data:
-            langid2, ipaform2, gloss2 = reflex_data[refid]
-            # Apply subgroup bonus: reduce distance for same-subgroup languages
-            target_subgroup = lang_subgroups.get(langid2, 0)
-            if source_subgroup > 0 and source_subgroup == target_subgroup:
-                dist = dist * subgroup_bonus
-            results.append([refid, langid2, ipaform2, gloss2, dist])
-    
     c.executemany(
         "INSERT INTO potcogs (refid, langid, ipaform, gloss, sim) VALUES (?, ?, ?, ?, ?)",
         results,
@@ -171,16 +226,17 @@ def find_potential_reconstructions(ipaform1: str, gloss1: str, alpha: float) -> 
         langids=langids,
     )
     
-    # Build refid -> (langid, ipaform, gloss) lookup
-    c = get_db().cursor()
-    c.execute("SELECT refid, langid, ipaform, gloss FROM reflexes")
-    reflex_data = {r[0]: (r[1], r[2], r[3]) for r in c.fetchall()}
-    
-    # Get the set of proto-language IDs (languages that have descendants)
-    c.execute("SELECT DISTINCT plangid FROM descendant_of")
-    proto_langids = {r[0] for r in c.fetchall()}
+    # Build results using cached lookups (proto_langids cached at startup)
+    results = []
+    for refid, dist in similar:
+        if refid in reflex_lookup:
+            langid2, ipaform2, gloss2 = reflex_lookup[refid]
+            # Only include protoforms (reflexes whose language is a proto-language)
+            if langid2 in proto_langids:
+                results.append((refid, langid2, ipaform2, gloss2, dist))
     
     # Ensure potrecons table exists and clear it
+    c = get_db().cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS "potrecons" (
          "langid" integer NOT NULL,
          "refid" integer NOT NULL PRIMARY KEY,
@@ -188,15 +244,6 @@ def find_potential_reconstructions(ipaform1: str, gloss1: str, alpha: float) -> 
          "gloss" text,
          "sim" real NOT NULL)""")
     c.execute("DELETE FROM potrecons")
-    
-    results = []
-    for refid, dist in similar:
-        if refid in reflex_data:
-            langid2, ipaform2, gloss2 = reflex_data[refid]
-            # Only include protoforms (reflexes whose language is a proto-language)
-            if langid2 in proto_langids:
-                results.append([refid, langid2, ipaform2, gloss2, dist])
-    
     c.executemany(
         "INSERT INTO potrecons (refid, langid, ipaform, gloss, sim) VALUES (?, ?, ?, ?, ?)",
         results,
@@ -204,7 +251,7 @@ def find_potential_reconstructions(ipaform1: str, gloss1: str, alpha: float) -> 
     get_db().commit()
 
 
-def find_potential_reflexes(ipaform1: str, gloss1: str, alpha: float, plangid: int = None, subgroup_bonus: float = 0.2) -> None:
+def find_potential_reflexes(ipaform1: str, gloss1: str, alpha: float, plangid: int = None, subgroup_penalty: float = 1.0) -> None:
     """
     Find potential reflexes for a protoform using pre-computed embeddings.
     
@@ -216,7 +263,7 @@ def find_potential_reflexes(ipaform1: str, gloss1: str, alpha: float, plangid: i
         gloss1: Gloss of the protoform
         alpha: Weight for phonetic vs semantic (higher = more phonetic)
         plangid: Proto-language ID (used to boost descendants of this proto-language)
-        subgroup_bonus: Multiplier for descendant languages (0.2 = 80% distance reduction)
+        subgroup_penalty: Additive penalty for non-descendant languages (1.0 = add 1.0 to distance)
     """
     # Update embedder alpha if different
     embedder.alpha = alpha
@@ -229,22 +276,32 @@ def find_potential_reflexes(ipaform1: str, gloss1: str, alpha: float, plangid: i
         langids=langids,
     )
     
-    # Build refid -> (langid, ipaform, gloss) lookup
-    c = get_db().cursor()
-    c.execute("SELECT refid, langid, ipaform, gloss FROM reflexes")
-    reflex_data = {r[0]: (r[1], r[2], r[3]) for r in c.fetchall()}
-    
-    # Get the set of proto-language IDs (languages that have descendants)
-    c.execute("SELECT DISTINCT plangid FROM descendant_of")
-    proto_langids = {r[0] for r in c.fetchall()}
-    
-    # Get descendant languages for the given proto-language (for subgroup bonus)
+    # Get descendant languages for the given proto-language (for subgroup penalty)
+    # This is the only dynamic query needed
     descendant_langids = set()
     if plangid:
+        c = get_db().cursor()
         c.execute("SELECT langid FROM descendant_of WHERE plangid = ?", (plangid,))
         descendant_langids = {r[0] for r in c.fetchall()}
     
+    # Build results using cached lookups (reflex_lookup, proto_langids cached at startup)
+    results = []
+    for refid, dist in similar:
+        if refid in reflex_lookup:
+            langid2, ipaform2, gloss2 = reflex_lookup[refid]
+            # Only include non-protoforms (regular reflexes, not proto-languages)
+            if langid2 not in proto_langids:
+                # Apply subgroup penalty: ADD penalty to non-descendant languages
+                # This ensures descendant items always rank before non-descendant items
+                if langid2 not in descendant_langids:
+                    dist = dist + subgroup_penalty
+                results.append((refid, langid2, ipaform2, gloss2, dist))
+    
+    # Re-sort by distance after applying penalty
+    results.sort(key=lambda x: x[4])
+    
     # Ensure potcogs table exists and clear it
+    c = get_db().cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS "potcogs" (
          "langid" integer NOT NULL,
          "refid" integer NOT NULL PRIMARY KEY,
@@ -252,18 +309,6 @@ def find_potential_reflexes(ipaform1: str, gloss1: str, alpha: float, plangid: i
          "gloss" text,
          "sim" real NOT NULL)""")
     c.execute("DELETE FROM potcogs")
-    
-    results = []
-    for refid, dist in similar:
-        if refid in reflex_data:
-            langid2, ipaform2, gloss2 = reflex_data[refid]
-            # Only include non-protoforms (regular reflexes, not proto-languages)
-            if langid2 not in proto_langids:
-                # Apply subgroup bonus: reduce distance for descendant languages
-                if langid2 in descendant_langids:
-                    dist = dist * subgroup_bonus
-                results.append([refid, langid2, ipaform2, gloss2, dist])
-    
     c.executemany(
         "INSERT INTO potcogs (refid, langid, ipaform, gloss, sim) VALUES (?, ?, ?, ?, ?)",
         results,
@@ -316,21 +361,22 @@ def root():
 
 @app.route("/reflexes", methods=["GET", "POST"])
 def reflexes():
-    # All data should have the following shape
-    # Column 3 (Form) shows ipaform, column 6 (hidden) stores original form
-    cols = ["reflexes.langid", "refid", "lname", "ipaform", "gloss", "is_supporting", "form"]
+    # Client table columns: [checkbox, langid, refid, lname, ipaform, gloss, is_supporting, form]
+    # Map client column index to server column name (checkbox is col 0, not sortable)
+    cols = [None, "reflexes.langid", "refid", "lname", "ipaform", "gloss", "is_supporting", "form"]
     # limit parameters
     start = request.args.get("start", 0, type=int)
     length = request.args.get("length", 0, type=int)
     draw = request.args.get("draw", 0, type=int)
-    # Search strings for language, form, and gloss
-    lang_search = request.args.get("columns[2][search][value]", "", type=str)
-    form_search = request.args.get("columns[3][search][value]", "", type=str)
-    gloss_search = request.args.get("columns[4][search][value]", "", type=str)
+    # Search strings for language, form, and gloss (columns 3, 4, 5 in client table)
+    lang_search = request.args.get("columns[3][search][value]", "", type=str)
+    form_search = request.args.get("columns[4][search][value]", "", type=str)
+    gloss_search = request.args.get("columns[5][search][value]", "", type=str)
     
 
-    # Order
-    order = cols[request.args.get("order[0][column]", 2, type=int)]
+    # Order - default to lname (column 3) if invalid
+    order_col = request.args.get("order[0][column]", 3, type=int)
+    order = cols[order_col] if order_col < len(cols) and cols[order_col] else "lname"
     direction = request.args.get("order[0][dir]", "asc", type=str)
     if direction not in ["asc", "desc"]:
         direction = "asc"
@@ -392,18 +438,20 @@ def reflexes():
 
 @app.route("/potcogs", methods=["GET", "POST"])
 def potcogs():
-    # All data for potcogs should take this shape:
-    cols = ["potcogs.langid", "refid", "lname", "ipaform", "gloss", "sim"]
+    # Client table columns: [checkbox, langid, refid, lname, ipaform, gloss, sim]
+    # Map client column index to server column name (checkbox is col 0, not sortable)
+    cols = [None, "potcogs.langid", "refid", "lname", "ipaform", "gloss", "sim"]
     # limit parameters
     start = request.args.get("start", 0, type=int)
     length = request.args.get("length", 0, type=int)
     draw = request.args.get("draw", 0, type=int)
-    # Search strings for language, form, and gloss
-    lang_search = request.args.get("columns[2][search][value]", "", type=str)
-    form_search = request.args.get("columns[3][search][value]", "", type=str)
-    gloss_search = request.args.get("columns[4][search][value]", "", type=str)
-    # Order
-    order = cols[request.args.get("order[0][column]", 0, type=int)]
+    # Search strings for language, form, and gloss (columns 3, 4, 5 in client table)
+    lang_search = request.args.get("columns[3][search][value]", "", type=str)
+    form_search = request.args.get("columns[4][search][value]", "", type=str)
+    gloss_search = request.args.get("columns[5][search][value]", "", type=str)
+    # Order - default to sim (column 6) if invalid
+    order_col = request.args.get("order[0][column]", 6, type=int)
+    order = cols[order_col] if order_col < len(cols) and cols[order_col] else "sim"
     direction = request.args.get("order[0][dir]", "asc", type=str)
     if direction not in ["asc", "desc"]:
         direction = "asc"
@@ -453,7 +501,7 @@ def potcogs():
                 sim
             FROM potcogs JOIN langnames ON langnames.langid=potcogs.langid
             {where_clause2}
-            ORDER BY sim ASC
+            ORDER BY {ordering_term}
             LIMIT ? OFFSET ?""",
         params2 + [length, start],
     )
@@ -557,25 +605,29 @@ def protoforms():
         placeholders = ",".join("?" * len(prefids))
         
         c.execute(
-            f"""SELECT COUNT(*) FROM reflexes
+            f"""SELECT COUNT(*) FROM (
+                SELECT DISTINCT reflexes.refid FROM reflexes
                 INNER JOIN descendant_of ON reflexes.langid=plangid
-                WHERE reflexes.refid IN ({placeholders})""",
+                WHERE reflexes.refid IN ({placeholders})
+            )""",
             prefids,
         )
         total = int(c.fetchone()[0])
         
         c.execute(
-            f"""SELECT COUNT(*) FROM reflexes
+            f"""SELECT COUNT(*) FROM (
+                SELECT DISTINCT reflexes.refid FROM reflexes
                 INNER JOIN descendant_of ON reflexes.langid=plangid
                 JOIN langnames ON langnames.langid=reflexes.langid
                 WHERE reflexes.refid IN ({placeholders})
-                AND {lang_cond} AND {form_cond} AND {gloss_cond}""",
+                AND {lang_cond} AND {form_cond} AND {gloss_cond}
+            )""",
             prefids + params,
         )
         filtered_total = int(c.fetchone()[0])
         
         c.execute(
-            f"""SELECT reflexes.refid, plangid, langnames.name AS lname, ipaform, gloss
+            f"""SELECT DISTINCT reflexes.refid, plangid, langnames.name AS lname, ipaform, gloss
                 FROM reflexes
                 INNER JOIN descendant_of ON plangid=reflexes.langid
                 JOIN langnames ON langnames.langid=reflexes.langid
@@ -822,6 +874,7 @@ def new_reflex_dialog():
 
 @app.route("/addnewreflex")
 def add_new_reflex():
+    global langids, reflex_lookup
     langid = request.args.get("langid", 0, type=int)
     sourceid = request.args.get("sourceid", 0, type=int)
     form = request.args.get("form", "", type=str)
@@ -834,6 +887,13 @@ def add_new_reflex():
         (langid, sourceid, form, gloss, ipaform),
     )
     get_db().commit()
+    # Get the new refid
+    c.execute("SELECT last_insert_rowid()")
+    refid = c.fetchone()[0]
+    # Update embeddings for the new reflex
+    embedder.update_embedding(refid, ipaform or "", gloss or "")
+    langids.append(langid)
+    reflex_lookup[refid] = (langid, ipaform, gloss)
     return jsonify({"success": "Entry successfully added"})
 
 
@@ -972,19 +1032,7 @@ def find_pot_recons():
     return jsonify({"success": "Reconstructions successfully ranked"})
 
 
-##############################################################################
-# Remove reflexes (supporting forms) from cognate sets
-##############################################################################
 
-
-@app.route("/removesupporting")
-def removed_reflex():
-    refid = request.args.get("refid", -1, type=int)
-    prefid = request.args.get("prefid", -1, type=int)
-    c = get_db().cursor()
-    c.execute("DELETE FROM reflex_of WHERE refid=? AND prefid=?", (refid, prefid))
-    get_db().commit()
-    return jsonify({"success": "Removed successfully"})
 
 
 ##############################################################################
@@ -1005,6 +1053,7 @@ def reflex_dialog():
 
 @app.route("/updatereflex")
 def update_reflex():
+    global reflex_lookup
     refid = request.args.get("refid", 0, type=int)
     form = request.args.get("form", "", type=str)
     gloss = request.args.get("gloss", "", type=str)
@@ -1013,17 +1062,29 @@ def update_reflex():
     c = get_db().cursor()
     c.execute("UPDATE reflexes SET form=?, gloss=?, ipaform=? WHERE refid=?", (form, gloss, ipaform, refid))
     get_db().commit()
+    # Update embedding for the modified reflex
+    embedder.update_embedding(refid, ipaform or "", gloss or "")
+    # Update lookup cache
+    if refid in reflex_lookup:
+        langid = reflex_lookup[refid][0]
+        reflex_lookup[refid] = (langid, ipaform, gloss)
     return jsonify({"success": "Updated successfully!"})
 
 
 @app.route("/updateipaform")
 def update_ipaform():
     """Update just the ipaform field for a reflex (from the Select Morph dialog)."""
+    global reflex_lookup
     refid = request.args.get("refid", 0, type=int)
     ipaform = request.args.get("ipaform", "", type=str)
     c = get_db().cursor()
     c.execute("UPDATE reflexes SET ipaform=? WHERE refid=?", (ipaform, refid))
     get_db().commit()
+    # Update embedding (need to get the gloss)
+    if refid in reflex_lookup:
+        langid, _, gloss = reflex_lookup[refid]
+        embedder.update_embedding(refid, ipaform or "", gloss or "")
+        reflex_lookup[refid] = (langid, ipaform, gloss)
     # Return the new morphs list for updating the dialog
     morphs = re.split(" |-", ipaform)
     return jsonify({"success": "Updated successfully!", "morphs": morphs})
@@ -1070,6 +1131,15 @@ def add_new_etymon():
     plangid = request.args.get("plangid", 0, type=int)
     protoform = request.args.get("protoform", "", type=str)
     protogloss = request.args.get("protogloss", "", type=str)
+    
+    # Validate inputs
+    if not protoform.strip():
+        return jsonify({"error": "Proto-form cannot be empty"}), 400
+    if not protogloss.strip():
+        return jsonify({"error": "Proto-gloss cannot be empty"}), 400
+    if plangid <= 0:
+        return jsonify({"error": "Invalid proto-language ID"}), 400
+    
     # Compute normalized IPA form for proto-form
     ipaform = normalize_to_ipa(protoform)
     c = get_db().cursor()
@@ -1080,11 +1150,18 @@ def add_new_etymon():
     get_db().commit()
     c.execute("SELECT LAST_INSERT_ROWID()")
     prefid = c.fetchone()[0]
+    # Also add to potrecons table so it appears in potrecons mode
+    c.execute(
+        "INSERT OR REPLACE INTO potrecons (langid, refid, ipaform, gloss, sim) VALUES (?, ?, ?, ?, ?)",
+        (plangid, prefid, ipaform, protogloss, 0.0),
+    )
+    get_db().commit()
+    print(f"Added new etymon: prefid={prefid}, plangid={plangid}, form={protoform}, gloss={protogloss}, ipaform={ipaform}")
     # Update embeddings for the new etymon
     embedder.update_embedding(prefid, ipaform, protogloss)
     # Update langids list
     langids.append(plangid)
-    return jsonify({"success": "Etymon successfully added", "prefid": prefid})
+    return jsonify({"success": "Etymon successfully added", "prefid": prefid, "ipaform": ipaform})
 
 
 @app.route("/findpotreflexes")
@@ -1140,6 +1217,11 @@ def add_new_set():
     get_db().commit()
     c.execute("SELECT LAST_INSERT_ROWID()")
     prefid = c.fetchone()[0]
+    # Also add to potrecons table so it appears in potrecons mode
+    c.execute(
+        "INSERT OR REPLACE INTO potrecons (langid, refid, ipaform, gloss, sim) VALUES (?, ?, ?, ?, ?)",
+        (plangid, prefid, ipaform, protogloss, 0.0),
+    )
     c.execute(
         "INSERT INTO reflex_of (refid, prefid, plangid, morph_index) VALUES (?, ?, ?, ?)",
         (refid, prefid, plangid, morph_index),
@@ -1366,6 +1448,70 @@ def proto_phonemes():
     })
 
 
+@app.route("/cognates_by_phoneme")
+def cognates_by_phoneme():
+    """
+    Get all cognate sets where a specific language has a specific phoneme.
+    
+    Args (via query params):
+        plangid: Proto-language ID
+        language: Language name to filter by
+        phoneme: Phoneme to search for
+        
+    Returns:
+        JSON with matching cognate sets and their alignments
+    """
+    from correspondence import extract_correspondence_sets_for_protolang
+    
+    plangid = request.args.get("plangid", 0, type=int)
+    language = request.args.get("language", "", type=str)
+    phoneme = request.args.get("phoneme", "", type=str)
+    
+    if not plangid or not language or not phoneme:
+        return jsonify({"error": "Missing required parameters"}), 400
+    
+    c = get_db().cursor()
+    
+    # Get proto-language name
+    c.execute("SELECT name FROM langnames WHERE langid = ?", (plangid,))
+    row = c.fetchone()
+    if not row:
+        return jsonify({"error": "Proto-language not found"}), 404
+    proto_lang_name = row[0]
+    
+    # Extract all correspondence sets
+    corr_sets, languages = extract_correspondence_sets_for_protolang(
+        c, plangid, proto_lang_name
+    )
+    
+    # Find cognate sets where the specified language has the specified phoneme
+    matching_cognate_sets = []
+    
+    for corr_set in corr_sets:
+        for cog_set in corr_set.cognate_sets:
+            # Check if this cognate set has the phoneme for the language
+            if cog_set.alignment and cog_set.column_index < len(cog_set.alignment):
+                col = cog_set.alignment[cog_set.column_index]
+                if col.get(language, '') == phoneme:
+                    matching_cognate_sets.append(cog_set.to_dict())
+    
+    # Remove duplicates (same prefid)
+    seen_prefids = set()
+    unique_cognate_sets = []
+    for cs in matching_cognate_sets:
+        if cs['prefid'] not in seen_prefids:
+            seen_prefids.add(cs['prefid'])
+            unique_cognate_sets.append(cs)
+    
+    return jsonify({
+        "language": language,
+        "phoneme": phoneme,
+        "proto_language": proto_lang_name,
+        "languages": languages,
+        "cognate_sets": unique_cognate_sets
+    })
+
+
 ##############################################################################
 # Data Upload
 ##############################################################################
@@ -1518,6 +1664,9 @@ def upload_data():
         
         conn.commit()
         
+        # Regenerate embeddings after bulk upload
+        regenerate_embeddings()
+        
         return jsonify({
             "success": True,
             "langid": langid,
@@ -1529,3 +1678,20 @@ def upload_data():
     except Exception as e:
         conn.rollback()
         return jsonify({"error": f"Database error: {e}"}), 500
+
+
+@app.route("/regenerate_embeddings")
+def regenerate_embeddings_route():
+    """
+    API endpoint to regenerate all embeddings.
+    Useful after manual database changes or to force a refresh.
+    """
+    try:
+        regenerate_embeddings()
+        return jsonify({
+            "success": True,
+            "count": len(embedder.refids),
+            "message": f"Successfully regenerated embeddings for {len(embedder.refids)} reflexes"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

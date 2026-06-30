@@ -3,15 +3,27 @@ Forward reconstruction evaluation module.
 
 Evaluates sound law systems defined in YAML format against cognate data
 from a SQLite database. Provides metrics and error reports via an API.
+
+YAML files should be placed in the forward_reconstruction/ directory and
+include a 'name' field. Leaf nodes in the tree should use glottocodes
+that resolve to language IDs in the database.
 """
 
+import argparse
 import difflib
+import glob
+import os
 import re
 import sqlite3
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable, Optional
 
 import yaml
+
+# Default paths
+DEFAULT_RECONSTRUCTION_DIR = Path(__file__).parent / "forward_reconstruction"
+DEFAULT_DB_PATH = Path(__file__).parent / "db" / "borderlands.sqlite3"
 
 
 @dataclass
@@ -43,12 +55,15 @@ class TreeNode:
 @dataclass
 class ForwardReconstruction:
     """A forward reconstruction system with laws and tree."""
+    name: str
     laws: dict[str, SoundLaw]
     tree: dict[str, list[TreeNode]]
 
     @classmethod
     def from_yaml(cls, yaml_str: str) -> "ForwardReconstruction":
         """Parse a forward reconstruction from YAML string.
+
+        The YAML must include a 'name' field at the top level.
 
         Laws can be specified in two formats:
 
@@ -64,8 +79,13 @@ class ForwardReconstruction:
                 target: "r"
                 left: ""
                 right: ""
+
+        Leaf nodes in the tree should use glottocodes (e.g., phad1238)
+        that will be resolved to language IDs in the database.
         """
         data = yaml.safe_load(yaml_str)
+
+        name = data.get("name", "unnamed")
 
         laws = {}
         for law_id, law_data in data.get("laws", {}).items():
@@ -95,7 +115,7 @@ class ForwardReconstruction:
                 for c in children
             ]
 
-        return cls(laws=laws, tree=tree)
+        return cls(name=name, laws=laws, tree=tree)
 
     def apply_laws(self, word: str, root: str = "ROOT") -> dict[str, str]:
         """Apply the tree of sound laws to a proto-form.
@@ -291,7 +311,8 @@ class ForwardReconstructionEvaluator:
         self,
         reconstruction: ForwardReconstruction,
         db_path: str,
-        proto_langid: int,
+        proto_langid: Optional[int] = None,
+        proto_glottocode: Optional[str] = None,
         laws_coeff: float = 0.5,
         refs_coeff: float = 2.5,
     ):
@@ -300,34 +321,63 @@ class ForwardReconstructionEvaluator:
         Args:
             reconstruction: The forward reconstruction system.
             db_path: Path to the SQLite database.
-            proto_langid: Language ID for the proto-language.
+            proto_langid: Language ID for the proto-language (optional if proto_glottocode provided).
+            proto_glottocode: Glottocode for the proto-language (optional if proto_langid provided).
             laws_coeff: Coefficient for number of laws in penalty.
             refs_coeff: Coefficient for law references in penalty.
         """
         self.reconstruction = reconstruction
         self.db_path = db_path
-        self.proto_langid = proto_langid
+        self._proto_langid = proto_langid
+        self._proto_glottocode = proto_glottocode
         self.laws_coeff = laws_coeff
         self.refs_coeff = refs_coeff
         self._lang_id_to_name: dict[int, str] = {}
         self._lang_name_to_id: dict[str, int] = {}
+        self._glottocode_to_langid: dict[str, int] = {}
+        self._langid_to_glottocode: dict[int, str] = {}
 
-    def _load_language_names(self, conn: sqlite3.Connection) -> None:
-        """Load language ID to name mappings."""
+    def _load_language_mappings(self, conn: sqlite3.Connection) -> None:
+        """Load language ID, name, and glottocode mappings."""
         cursor = conn.cursor()
-        cursor.execute("SELECT langid, name FROM langnames")
-        for langid, name in cursor.fetchall():
+        cursor.execute("SELECT langid, name, glottocode FROM langnames")
+        for langid, name, glottocode in cursor.fetchall():
             self._lang_id_to_name[langid] = name
             self._lang_name_to_id[name] = langid
+            if glottocode and glottocode != 'unk':
+                self._glottocode_to_langid[glottocode] = langid
+                self._langid_to_glottocode[langid] = glottocode
 
-    def _get_cognate_sets(self, conn: sqlite3.Connection) -> list[dict]:
+    def _resolve_proto_langid(self) -> int:
+        """Resolve the proto-language ID from langid or glottocode."""
+        if self._proto_langid is not None:
+            return self._proto_langid
+        if self._proto_glottocode is not None:
+            langid = self._glottocode_to_langid.get(self._proto_glottocode)
+            if langid is None:
+                raise ValueError(f"Unknown proto-language glottocode: {self._proto_glottocode}")
+            return langid
+        raise ValueError("Either proto_langid or proto_glottocode must be provided")
+
+    def _resolve_glottocode_to_langid(self, glottocode: str) -> Optional[int]:
+        """Resolve a glottocode to a language ID."""
+        return self._glottocode_to_langid.get(glottocode)
+
+    def _get_language_identifier(self, langid: int) -> str:
+        """Get the glottocode for a language ID, falling back to name."""
+        glottocode = self._langid_to_glottocode.get(langid)
+        if glottocode:
+            return glottocode
+        return self._lang_id_to_name.get(langid, f"lang_{langid}")
+
+    def _get_cognate_sets(self, conn: sqlite3.Connection, proto_langid: int) -> list[dict]:
         """Load cognate sets from the database.
 
         Returns a list of dicts, each with:
         - prefid: protoform reflex ID
         - protoform: the proto-form string
         - gloss: the gloss
-        - reflexes: dict mapping language name to (refid, form)
+        - reflexes: dict mapping glottocode (or language name) to (refid, form)
         """
         cursor = conn.cursor()
 
@@ -338,7 +388,7 @@ class ForwardReconstructionEvaluator:
             FROM reflexes
             WHERE langid = ? AND ipaform IS NOT NULL AND ipaform != ''
             """,
-            (self.proto_langid,),
+            (proto_langid,),
         )
         protoforms = cursor.fetchall()
 
@@ -357,13 +407,14 @@ class ForwardReconstructionEvaluator:
 
             reflexes = {}
             for refid, langid, form, morph_index in cursor.fetchall():
-                lang_name = self._lang_id_to_name.get(langid, f"lang_{langid}")
+                # Use glottocode as the key, falling back to language name
+                lang_identifier = self._get_language_identifier(langid)
                 # Extract the relevant morpheme
                 morphemes = re.split(r"[-\s]+", form)
                 morphemes = [m for m in morphemes if m]
                 if morphemes and 0 <= morph_index < len(morphemes):
                     form = morphemes[morph_index]
-                reflexes[lang_name] = (refid, form)
+                reflexes[lang_identifier] = (refid, form)
 
             if reflexes:  # Only include sets with at least one reflex
                 cognate_sets.append({
@@ -379,8 +430,9 @@ class ForwardReconstructionEvaluator:
         """Run evaluation and return the report."""
         conn = sqlite3.connect(self.db_path)
         try:
-            self._load_language_names(conn)
-            cognate_sets = self._get_cognate_sets(conn)
+            self._load_language_mappings(conn)
+            proto_langid = self._resolve_proto_langid()
+            cognate_sets = self._get_cognate_sets(conn, proto_langid)
         finally:
             conn.close()
 
@@ -395,18 +447,19 @@ class ForwardReconstructionEvaluator:
             matches = {}
             mismatches = []
 
-            for lang_name, (refid, reference) in cog_set["reflexes"].items():
-                if lang_name not in leaf_languages:
+            # lang_identifier is now a glottocode (or language name as fallback)
+            for lang_identifier, (refid, reference) in cog_set["reflexes"].items():
+                if lang_identifier not in leaf_languages:
                     continue
 
-                hypothesis = hypotheses.get(lang_name, "???")
+                hypothesis = hypotheses.get(lang_identifier, "???")
                 total_comparisons += 1
 
                 if hypothesis == reference:
-                    matches[lang_name] = (hypothesis, reference)
+                    matches[lang_identifier] = (hypothesis, reference)
                 else:
                     mismatches.append(Mismatch(
-                        language=lang_name,
+                        language=lang_identifier,
                         hypothesis=hypothesis,
                         reference=reference,
                     ))
@@ -436,7 +489,8 @@ class ForwardReconstructionEvaluator:
 def evaluate_from_yaml(
     yaml_str: str,
     db_path: str,
-    proto_langid: int,
+    proto_langid: Optional[int] = None,
+    proto_glottocode: Optional[str] = None,
     laws_coeff: float = 0.5,
     refs_coeff: float = 2.5,
 ) -> EvaluationReport:
@@ -445,7 +499,8 @@ def evaluate_from_yaml(
     Args:
         yaml_str: YAML string defining the forward reconstruction.
         db_path: Path to the SQLite database.
-        proto_langid: Language ID for the proto-language.
+        proto_langid: Language ID for the proto-language (optional if proto_glottocode provided).
+        proto_glottocode: Glottocode for the proto-language (optional if proto_langid provided).
         laws_coeff: Coefficient for number of laws in penalty.
         refs_coeff: Coefficient for law references in penalty.
 
@@ -457,6 +512,7 @@ def evaluate_from_yaml(
         reconstruction=reconstruction,
         db_path=db_path,
         proto_langid=proto_langid,
+        proto_glottocode=proto_glottocode,
         laws_coeff=laws_coeff,
         refs_coeff=refs_coeff,
     )
@@ -467,3 +523,182 @@ def load_yaml_file(path: str) -> str:
     """Load a YAML file and return its contents as a string."""
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
+
+
+def evaluate_from_file(
+    yaml_path: str,
+    db_path: Optional[str] = None,
+    proto_langid: Optional[int] = None,
+    proto_glottocode: Optional[str] = None,
+    laws_coeff: float = 0.5,
+    refs_coeff: float = 2.5,
+) -> EvaluationReport:
+    """Evaluate a forward reconstruction YAML file against a database.
+
+    Args:
+        yaml_path: Path to the YAML file defining the forward reconstruction.
+        db_path: Path to the SQLite database (defaults to db/borderlands.sqlite3).
+        proto_langid: Language ID for the proto-language (optional if proto_glottocode provided).
+        proto_glottocode: Glottocode for the proto-language (optional if proto_langid provided).
+        laws_coeff: Coefficient for number of laws in penalty.
+        refs_coeff: Coefficient for law references in penalty.
+
+    Returns:
+        EvaluationReport with metrics and per-cognate-set results.
+    """
+    if db_path is None:
+        db_path = str(DEFAULT_DB_PATH)
+
+    yaml_str = load_yaml_file(yaml_path)
+    return evaluate_from_yaml(
+        yaml_str=yaml_str,
+        db_path=db_path,
+        proto_langid=proto_langid,
+        proto_glottocode=proto_glottocode,
+        laws_coeff=laws_coeff,
+        refs_coeff=refs_coeff,
+    )
+
+
+def list_reconstruction_files(directory: Optional[str] = None) -> list[str]:
+    """List all YAML reconstruction files in the specified directory.
+
+    Args:
+        directory: Path to directory (defaults to forward_reconstruction/).
+
+    Returns:
+        List of YAML file paths.
+    """
+    if directory is None:
+        directory = str(DEFAULT_RECONSTRUCTION_DIR)
+
+    pattern = os.path.join(directory, "*.yaml")
+    return sorted(glob.glob(pattern))
+
+
+def get_reconstruction_by_name(name: str, directory: Optional[str] = None) -> Optional[str]:
+    """Find a reconstruction file by its 'name' field.
+
+    Args:
+        name: The name field value to search for.
+        directory: Path to directory (defaults to forward_reconstruction/).
+
+    Returns:
+        Path to the matching YAML file, or None if not found.
+    """
+    for filepath in list_reconstruction_files(directory):
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                if data.get("name") == name:
+                    return filepath
+        except (yaml.YAMLError, IOError):
+            continue
+    return None
+
+
+def main():
+    """Command-line interface for forward reconstruction evaluation."""
+    parser = argparse.ArgumentParser(
+        description="Evaluate forward reconstruction sound laws against cognate data."
+    )
+    parser.add_argument(
+        "yaml_file",
+        nargs="?",
+        help="Path to YAML file, or name of reconstruction in forward_reconstruction/",
+    )
+    parser.add_argument(
+        "--db",
+        default=str(DEFAULT_DB_PATH),
+        help=f"Path to SQLite database (default: {DEFAULT_DB_PATH})",
+    )
+    parser.add_argument(
+        "--proto-langid",
+        type=int,
+        help="Language ID for the proto-language",
+    )
+    parser.add_argument(
+        "--proto-glottocode",
+        help="Glottocode for the proto-language",
+    )
+    parser.add_argument(
+        "--laws-coeff",
+        type=float,
+        default=0.5,
+        help="Coefficient for number of laws in penalty (default: 0.5)",
+    )
+    parser.add_argument(
+        "--refs-coeff",
+        type=float,
+        default=2.5,
+        help="Coefficient for law references in penalty (default: 2.5)",
+    )
+    parser.add_argument(
+        "--errors-only",
+        action="store_true",
+        help="Only show cognate sets with errors",
+    )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output",
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="List available reconstruction files",
+    )
+
+    args = parser.parse_args()
+
+    if args.list:
+        files = list_reconstruction_files()
+        if not files:
+            print(f"No YAML files found in {DEFAULT_RECONSTRUCTION_DIR}")
+            return
+
+        print("Available reconstruction files:")
+        for filepath in files:
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f)
+                    name = data.get("name", "unnamed")
+                print(f"  {name}: {filepath}")
+            except (yaml.YAMLError, IOError) as e:
+                print(f"  (error reading {filepath}: {e})")
+        return
+
+    if not args.yaml_file:
+        parser.error("yaml_file is required unless --list is specified")
+
+    # Resolve yaml_file: could be a path or a name
+    if os.path.exists(args.yaml_file):
+        yaml_path = args.yaml_file
+    else:
+        # Try to find by name
+        yaml_path = get_reconstruction_by_name(args.yaml_file)
+        if yaml_path is None:
+            # Try as a filename in the default directory
+            potential_path = DEFAULT_RECONSTRUCTION_DIR / f"{args.yaml_file}.yaml"
+            if potential_path.exists():
+                yaml_path = str(potential_path)
+            else:
+                parser.error(
+                    f"Could not find reconstruction file: {args.yaml_file}\n"
+                    f"Use --list to see available reconstructions."
+                )
+
+    report = evaluate_from_file(
+        yaml_path=yaml_path,
+        db_path=args.db,
+        proto_langid=args.proto_langid,
+        proto_glottocode=args.proto_glottocode,
+        laws_coeff=args.laws_coeff,
+        refs_coeff=args.refs_coeff,
+    )
+
+    print(report.format_report(use_color=not args.no_color, errors_only=args.errors_only))
+
+
+if __name__ == "__main__":
+    main()

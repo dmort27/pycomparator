@@ -107,6 +107,8 @@ class CorrespondenceSet:
     cognate_sets: list[CognateSetInfo] = field(default_factory=list)
     # Number of cognate sets (for sorting)
     count: int = 0
+    # Languages that have at least one reflex in this correspondence set
+    languages_with_data: set[str] = field(default_factory=set)
     
     def pattern_tuple(self, languages: list[str]) -> tuple:
         """Get pattern as ordered tuple."""
@@ -120,7 +122,8 @@ class CorrespondenceSet:
         return {
             'pattern': self.pattern_display(languages),
             'count': self.count,
-            'cognate_sets': [cs.to_dict() for cs in self.cognate_sets]
+            'cognate_sets': [cs.to_dict() for cs in self.cognate_sets],
+            'languages_with_data': list(self.languages_with_data)
         }
 
 
@@ -282,8 +285,20 @@ class CorrespondenceExtractor:
             merged_sets.append(corr_set)
         
         # Sort cognate sets within each correspondence set by gloss
+        # and compute languages_with_data for each correspondence set
         for corr_set in merged_sets:
             corr_set.cognate_sets.sort(key=lambda cs: cs.proto_gloss.lower())
+            # Compute languages_with_data from all cognate sets in this correspondence set
+            langs_with_data = set()
+            for cog_set in corr_set.cognate_sets:
+                # The proto-language always has data (it's the source of the cognate set)
+                if cog_set.languages:
+                    langs_with_data.add(cog_set.languages[0])  # proto-language
+                # Add daughter languages that have reflexes
+                if cog_set.reflexes:
+                    for reflex in cog_set.reflexes:
+                        langs_with_data.add(reflex.lang_name)
+            corr_set.languages_with_data = langs_with_data
         
         # Filter out sets with fewer than 2 non-empty positions
         filtered_sets = [cs for cs in merged_sets if count_non_empty_positions(cs) >= 2]
