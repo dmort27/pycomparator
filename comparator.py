@@ -1097,11 +1097,18 @@ def update_ipaform():
 
 @app.route("/deletereflex")
 def delete_reflex():
+    global reflex_lookup
     refid = request.args.get("refid", -1, type=int)
+    print(f"Delete refid={refid}")
     c = get_db().cursor()
     c.execute("DELETE FROM reflexes WHERE refid=?", (refid,))
     c.execute("DELETE FROM reflex_of WHERE refid=?", (refid,))
     get_db().commit()
+    # Remove from embeddings cache
+    embedder.remove_embedding(refid)
+    # Remove from reflex_lookup
+    if refid in reflex_lookup:
+        del reflex_lookup[refid]
     return jsonify({"success": "Deleted successfully"})
 
 
@@ -1261,12 +1268,18 @@ def update_morph():
 
 @app.route("/deleteprotoform")
 def delete_protoform():
+    global reflex_lookup
     prefid = request.args.get("prefid", -1, type=int)
     print(f"Delete prefid={prefid}")
     c = get_db().cursor()
     c.execute("DELETE FROM reflexes WHERE refid=?", (prefid,))
     c.execute("DELETE FROM reflex_of WHERE prefid=?", (prefid,))
     get_db().commit()
+    # Remove from embeddings cache
+    embedder.remove_embedding(prefid)
+    # Remove from reflex_lookup
+    if prefid in reflex_lookup:
+        del reflex_lookup[prefid]
     return jsonify({"success": "Deleted successfully"})
 
 

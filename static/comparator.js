@@ -415,24 +415,37 @@ $(document).ready(function () {
   //////////////////////////////////////////
 
   function deleteReflexes() {
-    reflexes
-    .rows({
-      selected: true
-    })
-    .data()
-    .toArray()
-    .forEach(function(value) {
-      var refid = value[0];
-      $.ajax({
-        url: '/deletereflex',
-        data: {
-          refid: refid
-        },
-        success: function() {
-          console.log('Deleted reflex');
-          reflexes.ajax.reload(null, false);
-        }
-      });
+    var selectedRows = reflexes.rows({ selected: true });
+    var selectedData = selectedRows.data().toArray();
+    
+    if (selectedData.length === 0) {
+      alert('Please select a reflex to delete.');
+      return;
+    }
+    
+    // Data columns: [0]=langid, [1]=refid, [2]=lname, [3]=ipaform, [4]=gloss
+    var refid = selectedData[0][1];
+    var form = selectedData[0][3] || '';
+    var gloss = selectedData[0][4] || '';
+    
+    if (!confirm('Delete reflex "' + form + '" (' + gloss + ')?')) {
+      return;
+    }
+    
+    $.ajax({
+      url: '/deletereflex',
+      data: {
+        refid: refid
+      },
+      success: function() {
+        console.log('Deleted reflex');
+        reflexes.ajax.reload(null, false);
+        supporting.ajax.reload(null, false);
+      },
+      error: function(xhr, status, error) {
+        console.log('Error deleting reflex: ' + error);
+        alert('Error deleting reflex: ' + error);
+      }
     });
   }
 

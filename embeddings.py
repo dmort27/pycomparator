@@ -346,6 +346,29 @@ class CognateEmbedder:
         self._faiss_index = None
         self._combined_embeddings = None
     
+    def remove_embedding(self, refid: int) -> bool:
+        """
+        Remove an embedding by refid.
+        
+        Args:
+            refid: The reflex ID to remove
+            
+        Returns:
+            True if removed, False if not found
+        """
+        if refid not in self.refids:
+            return False
+        
+        idx = self.refids.index(refid)
+        self.refids.pop(idx)
+        self.phonetic_embeddings = np.delete(self.phonetic_embeddings, idx, axis=0)
+        self.semantic_embeddings = np.delete(self.semantic_embeddings, idx, axis=0)
+        
+        # Invalidate FAISS index so it gets rebuilt on next query
+        self._faiss_index = None
+        self._combined_embeddings = None
+        return True
+    
     def save(self, path: str) -> None:
         """Save fitted embedder to file."""
         data = {
