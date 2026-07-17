@@ -1066,6 +1066,9 @@ def update_reflex():
     ipaform = normalize_to_ipa(form)
     c = get_db().cursor()
     c.execute("UPDATE reflexes SET form=?, gloss=?, ipaform=? WHERE refid=?", (form, gloss, ipaform, refid))
+    # Also update cached search result tables (potrecons and potcogs) if this reflex is in them
+    c.execute("UPDATE potrecons SET ipaform=?, gloss=? WHERE refid=?", (ipaform, gloss, refid))
+    c.execute("UPDATE potcogs SET ipaform=?, gloss=? WHERE refid=?", (ipaform, gloss, refid))
     get_db().commit()
     # Update embedding for the modified reflex
     embedder.update_embedding(refid, ipaform or "", gloss or "")

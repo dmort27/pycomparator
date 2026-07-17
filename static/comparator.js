@@ -649,13 +649,14 @@ $(document).ready(function () {
             },
             dataType: 'json',
             success: function(response) {
-              console.log('Update success:', response);
               protoforms.ajax.reload(function() {
                 // Restore scroll position after reload completes
                 var scrollBody = $('#protoforms').closest('.dataTables_scrollBody');
                 scrollBody.scrollTop(dlgScrollPos);
               }, false);
-              supporting.ajax.reload(null, false);
+              if (typeof supporting !== 'undefined') {
+                supporting.ajax.reload(null, false);
+              }
               dialogElement.dialog('close');
             },
             error: function(xhr, status, error) {
