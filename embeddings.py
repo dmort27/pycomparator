@@ -433,6 +433,10 @@ class CognateEmbedder:
         if HAS_FAISS and embedder._fitted:
             embedder._build_faiss_index()
         
+        # Pre-load sentence model if using dense semantics (avoids lazy loading issues)
+        if embedder.use_dense_semantic and HAS_SENTENCE_TRANSFORMERS:
+            cls._get_sentence_model()
+        
         return embedder
 
 

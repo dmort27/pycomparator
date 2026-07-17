@@ -8,6 +8,9 @@ $(document).ready(function () {
   var checkedReflexes = new Set();
   var checkedPotcogs = new Set();
   
+  // Default pane to focus after adding reflex to cognate set
+  var defaultPane = 'L';
+  
   function newReflex() {
     $.ajax({
       url: '/newreflexdialog',
@@ -278,26 +281,31 @@ $(document).ready(function () {
     var scrollPos = scrollBody.scrollTop();
     
     for (var i = 0; i < selection.length; i++) {
-      $.ajax({
-        refid: selection[i][1],
-        scrollPos: scrollPos,
-        url: '/reflexdialog',
-        data: {
-          langid: selection[i][0],
-          refid: selection[i][1],
-          lname: selection[i][2],
-          form: selection[i][3],
-          gloss: selection[i][4],
-        },
-        dataType: 'html',
-        success: editReflexDialog
-      });
+      // Use IIFE to capture current values (closure fix for async callbacks)
+      (function(refid, langid, lname, form, gloss, scrollPosCapture) {
+        $.ajax({
+          url: '/reflexdialog',
+          data: {
+            langid: langid,
+            refid: refid,
+            lname: lname,
+            form: form,
+            gloss: gloss,
+          },
+          dataType: 'html',
+          success: function(data) {
+            editReflexDialog(data, refid, scrollPosCapture);
+          },
+          error: function(xhr, status, error) {
+            console.error('Error loading reflex dialog:', status, error);
+            alert('Error loading edit dialog: ' + error);
+          }
+        });
+      })(selection[i][1], selection[i][0], selection[i][2], selection[i][3], selection[i][4], scrollPos);
     }
   }
   
-  function editReflexDialog(data) {
-    var refid = this.refid;
-    var scrollPos = this.scrollPos;
+  function editReflexDialog(data, refid, scrollPos) {
     $('#dialogs').append(data);
     console.log('#edit' + refid + ' reflex');
     $('#edit' + refid).data('refid', refid).data('scrollPos', scrollPos).dialog({
@@ -580,41 +588,57 @@ $(document).ready(function () {
     var selection = protoforms.rows({
       selected: true
     }).data();
+    console.log('editProtoform selection.length:', selection.length);
+    console.log('editProtoform selection:', selection.toArray());
     // Save scroll position before editing
     var scrollBody = $('#protoforms').closest('.dataTables_scrollBody');
     var scrollPos = scrollBody.scrollTop();
     
+    if (selection.length === 0) {
+      alert('Please select a reconstruction to edit.');
+      return;
+    }
+    
     for (var i = 0; i < selection.length; i++) {
-      $.ajax({
-        refid: selection[i][0],
-        scrollPos: scrollPos,
-        url: '/reflexdialog',
-        data: {
-          refid: selection[i][0],
-          lname: selection[i][2],
-          form: selection[i][3],
-          gloss: selection[i][4],
-        },
-        dataType: 'html',
-        success: editProtoformDialog
-      });
+      // Use IIFE to capture current values of i (closure fix for async callbacks)
+      (function(refid, lname, form, gloss, scrollPosCapture) {
+        $.ajax({
+          url: '/reflexdialog',
+          data: {
+            refid: refid,
+            lname: lname,
+            form: form,
+            gloss: gloss,
+          },
+          dataType: 'html',
+          success: function(data) {
+            editProtoformDialog(data, refid, scrollPosCapture);
+          },
+          error: function(xhr, status, error) {
+            console.error('Error loading dialog:', status, error);
+            alert('Error loading edit dialog: ' + error);
+          }
+        });
+      })(selection[i][0], selection[i][2], selection[i][3], selection[i][4], scrollPos);
     }
   }
 
-  function editProtoformDialog(data) {
-    var refid = this.refid;
-    var scrollPos = this.scrollPos;
+  function editProtoformDialog(data, refid, scrollPos) {
+    console.log('editProtoformDialog called, refid:', refid);
     $('#dialogs').append(data);
-    $('#edit' + refid).data('refid', refid).data('scrollPos', scrollPos).dialog({
+    var dialogElement = $('#edit' + refid);
+    console.log('dialogElement found:', dialogElement.length > 0);
+    dialogElement.data('refid', refid).data('scrollPos', scrollPos).dialog({
       title: 'Edit Protoform',
       buttons: [{
         text: 'Update',
         click: function() {
-          var dlgRefid = $(this).data('refid');
-          var dlgScrollPos = $(this).data('scrollPos');
+          console.log('Update button clicked in editProtoformDialog');
+          var dlgRefid = dialogElement.data('refid');
+          var dlgScrollPos = dialogElement.data('scrollPos');
           var form = $('#editform' + dlgRefid).val();
           var gloss = $('#editgloss' + dlgRefid).val();
-          var dialogToClose = $(this);
+          console.log('Updating refid:', dlgRefid, 'form:', form, 'gloss:', gloss);
           $.ajax({
             type: 'GET',
             url: '/updatereflex',
@@ -624,17 +648,20 @@ $(document).ready(function () {
               gloss: gloss
             },
             dataType: 'json',
-            success: function() {
+            success: function(response) {
+              console.log('Update success:', response);
               protoforms.ajax.reload(function() {
                 // Restore scroll position after reload completes
                 var scrollBody = $('#protoforms').closest('.dataTables_scrollBody');
                 scrollBody.scrollTop(dlgScrollPos);
               }, false);
               supporting.ajax.reload(null, false);
-              dialogToClose.dialog('close');
+              dialogElement.dialog('close');
             },
-            error: function() {
-              dialogToClose.dialog('close');
+            error: function(xhr, status, error) {
+              console.error('Update error:', status, error);
+              alert('Error updating: ' + error);
+              dialogElement.dialog('close');
             }
           });
         }
@@ -642,7 +669,7 @@ $(document).ready(function () {
       {
         text: 'Cancel',
         click: function() {
-          $(this).dialog('close');
+          dialogElement.dialog('close');
         }
       }]
     });
@@ -785,7 +812,6 @@ $(document).ready(function () {
   //////////////////////////////////////////
 
   function deleteProtoform() {
-    console.log('deleteProtoform called');
     var selectedRows = protoforms.rows({ selected: true });
     var selectedData = selectedRows.data();
     
@@ -802,22 +828,23 @@ $(document).ready(function () {
       return;
     }
     
-    console.log('Deleting prefid:' + prefid);
-    $.ajax({
-      url: '/deleteprotoform',
-      data: {
-        prefid: prefid
-      },
-      success: function() {
-        console.log('Deleted protoform');
+    fetch('/deleteprotoform?prefid=' + encodeURIComponent(prefid))
+      .then(function(response) {
+        if (!response.ok) {
+          throw new Error('Server error: ' + response.status);
+        }
+        return response.json();
+      })
+      .then(function(data) {
         protoforms.ajax.reload(null, false);
-        supporting.ajax.reload(null, false);
-      },
-      error: function(xhr, status, error) {
-        console.log('Error deleting protoform: ' + error);
-        alert('Error deleting reconstruction: ' + error);
-      }
-    });
+        if (typeof supporting !== 'undefined') {
+          supporting.ajax.reload(null, false);
+        }
+      })
+      .catch(function(error) {
+        console.error('Delete error:', error);
+        alert('Error deleting reconstruction: ' + error.message);
+      });
   }
 
   ////////////////////////////////////////
@@ -882,7 +909,6 @@ $(document).ready(function () {
       {
         text: 'Delete',
         action: function(e, dt, node, config) {
-          console.log('Delete button clicked');
           deleteProtoform();
         }
       },
@@ -1377,8 +1403,8 @@ $(document).ready(function () {
         addCheckedPotcogsToSet();
       }
       
-      // Return focus to Reflexes pane after adding
-      setFocusedTable('L');
+      // Return focus to default pane after adding
+      setFocusedTable(defaultPane);
     }
     
     // Global keyboard handler
@@ -1449,6 +1475,11 @@ $(document).ready(function () {
     // Correspondence Sets Dialog
     //////////////////////////////////////////
     
+    // Handle default pane selection change
+    $('#default-pane-select').change(function() {
+      defaultPane = $(this).val();
+    });
+    
     $('#correspondence-sets-btn').click(function() {
       // Remove any existing dialog first to prevent duplicates
       var existingDialog = $('#correspondence-sets-dialog');
@@ -1503,26 +1534,159 @@ $(document).ready(function () {
             }
             loadCorrespondenceSets(plangid);
           });
+          
+          // Select Languages button handler
+          dialog.find('#select-languages-btn').click(function() {
+            var plangid = select.val();
+            if (!plangid) {
+              alert('Please select a proto-language first.');
+              return;
+            }
+            openSelectLanguagesDialog(plangid);
+          });
+          
+          // Enable Select Languages button when proto-language is selected
+          select.change(function() {
+            var hasSelection = !!$(this).val();
+            dialog.find('#select-languages-btn').prop('disabled', !hasSelection);
+          });
         }
       });
     });
     
-    function loadCorrespondenceSets(plangid) {
-      $('#corr-loading').show();
-      $('#corr-sets-container').html('<p class="corr-placeholder">Loading...</p>');
+    // Current selected languages (null = all selected)
+    var currentSelectedLanguages = null;
+    var currentPlangid = null;
+    
+    function openSelectLanguagesDialog(plangid) {
+      currentPlangid = plangid;
       
+      // Fetch current language selection state from server
       $.ajax({
-        url: '/correspondence_sets',
+        url: '/selected_languages',
         data: { plangid: plangid },
         dataType: 'json',
         success: function(data) {
-          $('#corr-loading').hide();
-          renderCorrespondenceSets(data);
+          var checkboxContainer = $('#language-checkboxes');
+          checkboxContainer.empty();
+          
+          var selectedSet = new Set(data.selected_languages);
+          
+          data.all_languages.forEach(function(lang) {
+            var isChecked = selectedSet.has(lang);
+            var checkbox = $('<div style="margin: 5px 0;">')
+              .append($('<input type="checkbox" class="lang-checkbox">')
+                .attr('id', 'lang-cb-' + lang.replace(/\s+/g, '-'))
+                .attr('value', lang)
+                .prop('checked', isChecked))
+              .append($('<label style="margin-left: 5px;">')
+                .attr('for', 'lang-cb-' + lang.replace(/\s+/g, '-'))
+                .text(lang));
+            checkboxContainer.append(checkbox);
+          });
+          
+          // Open the dialog
+          $('#select-languages-dialog').dialog({
+            title: 'Select Languages',
+            width: 400,
+            height: 500,
+            modal: true,
+            buttons: {
+              'Apply': function() {
+                applyLanguageSelection();
+                $(this).dialog('close');
+              },
+              'Cancel': function() {
+                $(this).dialog('close');
+              }
+            }
+          });
+        },
+        error: function(xhr) {
+          alert('Error loading languages: ' + 
+            (xhr.responseJSON ? xhr.responseJSON.error : 'Unknown error'));
+        }
+      });
+    }
+    
+    function applyLanguageSelection() {
+      var selected = [];
+      $('#language-checkboxes .lang-checkbox:checked').each(function() {
+        selected.push($(this).val());
+      });
+      
+      if (selected.length === 0) {
+        alert('Please select at least one language.');
+        return;
+      }
+      
+      // Save selection to server and reload correspondence sets
+      $.ajax({
+        url: '/selected_languages',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+          plangid: currentPlangid,
+          selected_languages: selected
+        }),
+        success: function(response) {
+          currentSelectedLanguages = new Set(selected);
+          // Close the language selection dialog
+          $('#select-languages-dialog').dialog('close');
+          // Reload correspondence sets from server (will recompute with new language filter)
+          loadCorrespondenceSets(currentPlangid);
+        },
+        error: function(xhr) {
+          alert('Error saving language selection: ' + 
+            (xhr.responseJSON ? xhr.responseJSON.error : 'Unknown error'));
+        }
+      });
+    }
+    
+    // Select All / Deselect All button handlers
+    $(document).on('click', '#select-all-languages', function() {
+      $('#language-checkboxes .lang-checkbox').prop('checked', true);
+    });
+    
+    $(document).on('click', '#deselect-all-languages', function() {
+      $('#language-checkboxes .lang-checkbox').prop('checked', false);
+    });
+    
+    function loadCorrespondenceSets(plangid) {
+      currentPlangid = plangid;
+      $('#corr-loading').show();
+      $('#corr-sets-container').html('<p class="corr-placeholder">Loading...</p>');
+      
+      // First, get the selected languages for this proto-language
+      $.ajax({
+        url: '/selected_languages',
+        data: { plangid: plangid },
+        dataType: 'json',
+        success: function(langData) {
+          currentSelectedLanguages = new Set(langData.selected_languages);
+          
+          // Then load correspondence sets
+          $.ajax({
+            url: '/correspondence_sets',
+            data: { plangid: plangid },
+            dataType: 'json',
+            success: function(data) {
+              $('#corr-loading').hide();
+              renderCorrespondenceSets(data);
+            },
+            error: function(xhr) {
+              $('#corr-loading').hide();
+              $('#corr-sets-container').html(
+                '<p class="corr-placeholder">Error loading correspondence sets: ' + 
+                (xhr.responseJSON ? xhr.responseJSON.error : 'Unknown error') + '</p>'
+              );
+            }
+          });
         },
         error: function(xhr) {
           $('#corr-loading').hide();
           $('#corr-sets-container').html(
-            '<p class="corr-placeholder">Error loading correspondence sets: ' + 
+            '<p class="corr-placeholder">Error loading language selection: ' + 
             (xhr.responseJSON ? xhr.responseJSON.error : 'Unknown error') + '</p>'
           );
         }
@@ -1548,14 +1712,26 @@ $(document).ready(function () {
       corrSortState = { column: null, direction: 'asc' };
       corrFilters = {};
       
+      // Languages are already filtered by the server, use them directly
+      var displayLanguages = data.languages;
+      var languageIndices = displayLanguages.map(function(_, idx) { return idx; });
+      
+      // Update currentSelectedLanguages to match what server returned
+      currentSelectedLanguages = new Set(displayLanguages);
+      
+      // Store for use in other functions
+      corrData.displayLanguages = displayLanguages;
+      corrData.languageIndices = languageIndices;
+      
       var table = $('<table class="corr-set-table">');
       var thead = $('<thead>');
       
       // Header row with language names (clickable for sorting)
       var headerRow = $('<tr class="corr-header-row">');
       headerRow.append('<th></th>'); // expand icon column
-      data.languages.forEach(function(lang, colIdx) {
-        var th = $('<th class="sortable-header" data-col="' + colIdx + '" data-type="lang">')
+      displayLanguages.forEach(function(lang, displayIdx) {
+        var origIdx = languageIndices ? languageIndices[displayIdx] : displayIdx;
+        var th = $('<th class="sortable-header" data-col="' + origIdx + '" data-type="lang">')
           .text(lang)
           .append('<span class="sort-indicator"></span>');
         headerRow.append(th);
@@ -1569,9 +1745,10 @@ $(document).ready(function () {
       // Filter row with regex inputs
       var filterRow = $('<tr class="corr-filter-row">');
       filterRow.append('<td></td>'); // expand icon column
-      data.languages.forEach(function(lang, colIdx) {
+      displayLanguages.forEach(function(lang, displayIdx) {
+        var origIdx = languageIndices ? languageIndices[displayIdx] : displayIdx;
         var td = $('<td>');
-        var input = $('<input type="text" class="corr-filter-input" data-col="' + colIdx + '" placeholder="regex">')
+        var input = $('<input type="text" class="corr-filter-input" data-col="' + origIdx + '" placeholder="regex">')
           .on('input', function() {
             applyCorrespondenceFilters();
           })
@@ -1597,7 +1774,7 @@ $(document).ready(function () {
       table.append(thead);
       
       var tbody = $('<tbody class="corr-tbody">');
-      renderCorrespondenceRows(tbody, data.correspondence_sets, data.languages);
+      renderCorrespondenceRows(tbody, data.correspondence_sets, displayLanguages, languageIndices);
       table.append(tbody);
       container.append(table);
       
@@ -1645,7 +1822,7 @@ $(document).ready(function () {
       });
     }
     
-    function renderCorrespondenceRows(tbody, corrSets, languages) {
+    function renderCorrespondenceRows(tbody, corrSets, displayLanguages, languageIndices) {
       tbody.empty();
       
       corrSets.forEach(function(corrSet, idx) {
@@ -1656,8 +1833,8 @@ $(document).ready(function () {
         // Languages that have data in this correspondence set
         var langsWithData = corrSet.languages_with_data || [];
         
-        // Pattern cells
-        languages.forEach(function(lang, langIdx) {
+        // Pattern cells (only for selected/displayed languages)
+        displayLanguages.forEach(function(lang, displayIdx) {
           var phoneme = corrSet.pattern[lang] || '';
           var cell = $('<td class="pattern-cell">');
           var hasData = langsWithData.indexOf(lang) !== -1;
@@ -1685,11 +1862,11 @@ $(document).ready(function () {
         
         // Expandable cognate sets container
         var cognateSetsRow = $('<tr class="cognate-sets-row">');
-        var cognateSetsCell = $('<td colspan="' + (languages.length + 2) + '">');
+        var cognateSetsCell = $('<td colspan="' + (displayLanguages.length + 2) + '">');
         var cognateSetsContainer = $('<div class="cognate-sets-container" data-idx="' + idx + '">');
         
         corrSet.cognate_sets.forEach(function(cogSet) {
-          cognateSetsContainer.append(renderCognateSet(cogSet, languages, corrSet.pattern));
+          cognateSetsContainer.append(renderCognateSet(cogSet, displayLanguages, corrSet.pattern));
         });
         
         cognateSetsCell.append(cognateSetsContainer);
@@ -1730,6 +1907,9 @@ $(document).ready(function () {
       if (!corrData) return;
       
       var languages = corrData.languages;
+      var displayLanguages = corrData.displayLanguages || languages;
+      var languageIndices = corrData.languageIndices;
+      
       var filtered = corrData.correspondence_sets.filter(function(corrSet) {
         // Apply filters
         for (var col in corrFilters) {
@@ -1778,10 +1958,10 @@ $(document).ready(function () {
       
       // Re-render rows
       var tbody = $('.corr-tbody');
-      renderCorrespondenceRows(tbody, filtered, languages);
+      renderCorrespondenceRows(tbody, filtered, displayLanguages, languageIndices);
     }
     
-    function renderCognateSet(cogSet, allLanguages, corrPattern) {
+    function renderCognateSet(cogSet, displayLanguages, corrPattern) {
       var div = $('<div class="cognate-set" data-prefid="' + cogSet.prefid + '">');
       
       // Header with protoform and gloss (editable)
@@ -1816,6 +1996,12 @@ $(document).ready(function () {
       
       div.append(header);
       
+      // Filter cogSet.languages to only include selected/displayed languages
+      var displayLangSet = new Set(displayLanguages);
+      var filteredLanguages = cogSet.languages.filter(function(lang) {
+        return displayLangSet.has(lang);
+      });
+      
       // Alignment table
       if (cogSet.alignment && cogSet.alignment.length > 0) {
         var table = $('<table class="alignment-table">');
@@ -1839,9 +2025,12 @@ $(document).ready(function () {
           });
         }
         
-        // Data rows (one per language)
+        // Data rows (one per language, filtered to selected languages)
         var tbody = $('<tbody>');
-        cogSet.languages.forEach(function(lang, langIdx) {
+        filteredLanguages.forEach(function(lang) {
+          // Find original index in cogSet.languages for determining if it's the protoform
+          var origLangIdx = cogSet.languages.indexOf(lang);
+          
           var row = $('<tr>');
           row.append($('<td class="lang-cell">').text(lang));
           
@@ -1866,7 +2055,7 @@ $(document).ready(function () {
           
           // Add remove button for daughter languages (not protoform)
           var removeCell = $('<td>');
-          if (langIdx > 0 && reflexByLang[lang]) {
+          if (origLangIdx > 0 && reflexByLang[lang]) {
             var reflex = reflexByLang[lang];
             var removeBtn = $('<button class="remove-cognate-btn" title="Remove from set">×</button>')
               .data('refid', reflex.refid)

@@ -26,6 +26,10 @@ app = Flask(__name__)
 DATABASE = "db/borderlands.sqlite3"
 EMBEDDER_CACHE = "db/embedder_cache.pkl"
 
+# Server-side state for selected languages per proto-language
+# Maps plangid -> set of selected language names (None means all selected)
+selected_languages_state: dict[int, set[str] | None] = {}
+
 # Load or build the embedder
 print("Loading cognate embedder...")
 import sqlite3 as _sqlite3
@@ -351,7 +355,8 @@ def strong_form(form, i):
 
 @app.route("/")
 def root():
-    return render_template("index.jinja2")
+    import time
+    return render_template("index.jinja2", cache_bust=int(time.time()))
 
 
 ##############################################################################
@@ -1329,9 +1334,12 @@ def correspondence_sets():
     
     proto_lang_name = row[0]
     
-    # Extract correspondence sets
+    # Get selected languages from server state (if any)
+    selected_languages = selected_languages_state.get(plangid)
+    
+    # Extract correspondence sets with selected languages filter
     corr_sets, languages = extract_correspondence_sets_for_protolang(
-        c, plangid, proto_lang_name
+        c, plangid, proto_lang_name, selected_languages
     )
     
     return jsonify({
@@ -1346,6 +1354,91 @@ def correspondence_sets():
 def correspondence_sets_dialog():
     """Render the correspondence sets dialog template."""
     return render_template("correspondence_sets_dialog.jinja2")
+
+
+@app.route("/selected_languages", methods=["GET"])
+def get_selected_languages():
+    """
+    Get the currently selected languages for a proto-language.
+    
+    Query parameters:
+        plangid: Proto-language ID (required)
+        
+    Returns:
+        JSON with list of all languages and which are selected
+    """
+    plangid = request.args.get("plangid", type=int)
+    if plangid is None:
+        return jsonify({"error": "plangid parameter is required"}), 400
+    
+    c = get_db().cursor()
+    
+    # Get all daughter languages for this proto-language
+    c.execute(
+        """SELECT DISTINCT langnames.name
+           FROM descendant_of
+           JOIN langnames ON langnames.langid = descendant_of.langid
+           WHERE descendant_of.plangid = ?
+           ORDER BY langnames.name""",
+        (plangid,)
+    )
+    all_languages = [row[0] for row in c.fetchall()]
+    
+    # Get proto-language name
+    c.execute("SELECT name FROM langnames WHERE langid = ?", (plangid,))
+    row = c.fetchone()
+    if row:
+        proto_lang_name = row[0]
+        all_languages = [proto_lang_name] + all_languages
+    
+    # Get selected languages (None means all selected)
+    selected = selected_languages_state.get(plangid)
+    if selected is None:
+        # All selected by default
+        selected_list = all_languages
+    else:
+        selected_list = [lang for lang in all_languages if lang in selected]
+    
+    return jsonify({
+        "plangid": plangid,
+        "all_languages": all_languages,
+        "selected_languages": selected_list
+    })
+
+
+@app.route("/selected_languages", methods=["POST"])
+def set_selected_languages():
+    """
+    Set the selected languages for a proto-language.
+    
+    JSON body:
+        plangid: Proto-language ID (required)
+        selected_languages: List of language names to select (required)
+        
+    Returns:
+        JSON with success status
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "JSON body is required"}), 400
+    
+    plangid = data.get("plangid")
+    if plangid is None:
+        return jsonify({"error": "plangid is required"}), 400
+    plangid = int(plangid)  # Ensure consistent type with GET endpoints
+    
+    selected = data.get("selected_languages")
+    if selected is None:
+        return jsonify({"error": "selected_languages is required"}), 400
+    
+    # Store the selection
+    selected_languages_state[plangid] = set(selected)
+    
+    return jsonify({
+        "success": True,
+        "plangid": plangid,
+        "selected_count": len(selected)
+    })
 
 
 ##############################################################################
@@ -1390,9 +1483,12 @@ def minimal_generalization():
 
     proto_lang_name = row[0]
 
-    # Extract correspondence sets
+    # Get selected languages from server state (if any)
+    selected_languages = selected_languages_state.get(plangid)
+
+    # Extract correspondence sets with selected languages filter
     corr_sets, languages = extract_correspondence_sets_for_protolang(
-        c, plangid, proto_lang_name
+        c, plangid, proto_lang_name, selected_languages
     )
 
     # Analyze the specified phoneme
@@ -1435,9 +1531,12 @@ def proto_phonemes():
 
     proto_lang_name = row[0]
 
-    # Extract correspondence sets
+    # Get selected languages from server state (if any)
+    selected_languages = selected_languages_state.get(plangid)
+
+    # Extract correspondence sets with selected languages filter
     corr_sets, languages = extract_correspondence_sets_for_protolang(
-        c, plangid, proto_lang_name
+        c, plangid, proto_lang_name, selected_languages
     )
 
     # Count correspondence sets per proto phoneme
@@ -1492,9 +1591,12 @@ def cognates_by_phoneme():
         return jsonify({"error": "Proto-language not found"}), 404
     proto_lang_name = row[0]
     
-    # Extract all correspondence sets
+    # Get selected languages from server state (if any)
+    selected_languages = selected_languages_state.get(plangid)
+    
+    # Extract correspondence sets with selected languages filter
     corr_sets, languages = extract_correspondence_sets_for_protolang(
-        c, plangid, proto_lang_name
+        c, plangid, proto_lang_name, selected_languages
     )
     
     # Find cognate sets where the specified language has the specified phoneme

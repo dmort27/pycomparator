@@ -17,6 +17,7 @@ laws:
   a-to-e-final: ["a", "e", "", "\\Z"]
   a-to-i-final: ["a", "i", "", "\\Z"]
   a-to-u-final: ["a", "u", "", "\\Z"]
+  a-to-o-closed ["a", "o", "", "[ptkmnŋr]"]
 
   # aj-
   aj-to-ej: ["aj", "ej", "", "\\Z"]
@@ -24,6 +25,9 @@ laws:
   aj-to-i: ["aj", "i", "", ""]
   aj-to-ie: ["aj", "ie", "", "\\Z"]
   aj-to-we-final: ["aj", "we", "", "\\Z"]
+
+  # at
+  at-to-e: ["at", "e", "", ""]
 
   # aw-
   aw-to-a-final: ["aw", "a", "", "\\Z"]
@@ -42,6 +46,11 @@ laws:
   dz-to-d: ["dz", "d", "", ""]
   dz-to-r: ["d͡z", "r", "", ""]
 
+  # e
+  e-to-i-final: ["e", "i", "", "\\Z"]
+  e-to-turned-a-cor: ["e", "ɐ", "", "[tn]"]
+  e-and-u-to-ej-before-t: ["[eu]", "ej", "", "t"]
+
   # ej-
   ej-to-a-final: ["ej", "a", "", "\\Z"]
   ej-to-aj-final: ["ej", "aj", "", "\\Z"]
@@ -52,7 +61,24 @@ laws:
   # esh-
   esh-to-s: ["ʃ", "s", "", ""]
 
+  # ew
+  ew-to-ow: ["ew", "ow", "", "\\Z"]
+
   i-to-a-before-k: ["i", "a", "k", "\\Z"]
+  i-to-turned-a-non-lab: ["i", "ɐ", "", "[tknŋ]"]
+
+  # -l
+  l-to-j: ["l", "j", "", "\\Z"]
+  l-to-n-final: ["l", "n", "", "\\Z"]
+
+  # o
+  o-to-turned-a-tkn: ["o", "ɐ", "", "[tkn]"]
+  o-to-u-final: ["o", "u", "", "\\Z"]
+  o-to-u-before-velar: ["o", "u", "", "[kŋ]"]
+
+  # oj
+  oj-to-u: ["oj", "u", "", "\\Z"]
+  oj-ow-to-uj: ["o[wj]", "uj", "", ""]
 
   # ow-
   ow-to-ao-final: ["ow", "ao", "", "\\Z"]
@@ -61,11 +87,19 @@ laws:
   ow-to-uj: ["ow", "uj", "", "\\Z"]
   ow-to-uə: ["ow", "uə", "", ""]
 
+  p-to-glottal-stop-after-low-final: ["p", "ʔ", "(ɐ|a|aː)", "\\Z"]
+
+  # -r
+  r-to-engma-final: ["r", "ŋ", "", "\\Zo"]
+
   # short-a-
   short-a-to-a: ["ă", "a", "", ""]
 
   # stop-
   stop-to-glottal-final: ["[ptk]", "ʔ", "", "\\Z"]
+
+  # t
+  tk-to-glottal-stop: ["[tk]", "ʔ", "", "\\Z"]
 
   # w-
   w-between-k-and-ow: ["k", "w", "ow", "\\Z"]
@@ -73,91 +107,67 @@ laws:
 
   k-after-high: ["", "k", "[ui]", "\\Z"]
 
+    # uj
+  Vj-to-i: ["[eou]j", "i", "", "\\Z"]
+  uj-to-u: ["uj", "u", "", "\\Z"]
+
+  # iou
+  iou-to-turned-a: ["[iou]", "ɐ", "", "\\Z"]
+
+  # low vowels
+  low-to-ej-before-cor: ["(ɐ|a|aː)", "ej", "", "t"]
+
+  # length
+  shortening: ["ː", "", "", ""]
+
 # Phylogenetic tree: maps parent nodes to lists of children with their laws
 # Leaf nodes use glottocodes (e.g., phad1238) that resolve to database langids
 
 tree:
   ROOT:
-    - child: nuc-tangkhul
+    - child: nuc-tangkhulic
       laws:
-        - bw-to-v
-        - b-to-p
+      - shortening
     - child: east2902 # Tusom
       laws:
-        - a-to-i-final
-        - ow-to-uə
-        - aj-to-ie
-        - aw-to-turned-m
-        - ej-to-a-final
-    - child: phadang-central
+        - law
+  nuc-tangkhulic:
+    - child: north-tangkhulic
       laws:
-        - dz-to-d
-    - child: kongai-northern
+        - uj-to-u
+    - child: kach1286
       laws:
-        - aj-to-i
-  nuc-tangkhul:
-    - child: kachai-khangoi
+        - l-to-j
+        - Vj-to-i
+        - a-to-u
+        - e-to-i
+        - iou-to-turned-a
+        - aj-to-we
+        - aw-to-o
+        - ow-to-e
+        - a-to-o-closed
+        - i-to-turned-a-non-lab
+        - e-to-turned-a-cor
+        - o-to-turned-a-tkn
+  north-tangkhulic:
+    - child: ukhr1238 # Ukhrul
       laws:
-        - short-a-to-a
-    - child: champung-challow
+        - e-to-i-final
+        - oj-ow-to-uj
+      child: chal1279.1 # Huishu
       laws:
-        - dz-to-r
-  phadang-central:
-    - child: phad1238 # Phadang
-      laws:
-        - ow-to-aw-final
-        - aj-to-ej-final
-        - aw-to-o-final
-        - ej-to-i-final
-    - child: gord1235 # C. Tangkhul
-      laws: []
-  kongai-northern:
-    - child: kong1298 # Kongai
-      laws:
-        - ow-to-ao-final
-        - ej-to-e-final
-    - child: nort3286 # N. Tangkhul
-      laws: []
-  kachai-khangoi:
-    - child: kach1286 # Kachai
-      laws:
-        - aj-to-we-final
-        - a-to-u-final
-        - w-between-k-and-ow
-        - ow-to-e-final
-        - aw-to-o-final
-        - ej-to-i-final
-    - child: khan1277 # Khangoi
-      laws:
-        - aw-to-a-final
-        - ow-to-aw-final
-        - aj-to-ej-final
-  champung-challow:
-    - child: luhuppa
-      laws:
-        - w-to-h
-        - a-lowering
-        - ow-to-uj
-    - child: challow-huishu
-      laws:
+        - tk-to-glottal-stop
         - k-after-high
+        - o-to-u-final
+        - o-to-u-before-velar
         - ej-to-u-final
-        - aj-to-ej
-        - a-to-e-final
-        - stop-to-glottal-final
-        - esh-to-s
-        - c-to-ts
-  challow-huishu:
-    - child: chal1279.1 # Huishu
-      laws:
         - aj-to-ej-final
         - aw-to-ow-final
-    - child: chal1279 # Challow
-      laws:
-        - ej-to-aj-final
-        - i-to-a-before-k
-  luhuppa:
-    - child: ukhr1238.1 # Luhuppa
-      laws: []
-    - child: ukhr1238 # Ukhrul
-      laws: []
+        - ew-to-ow
+        - oj-to-u
+        - at-to-e
+        - low-to-ej-before-cor
+        - e-and-u-to-ej-before-t
+        - p-to-glottal-stop-after-low-final
+        - l-to-n-final
+        - r-to-engma-final

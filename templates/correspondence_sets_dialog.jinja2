@@ -5,10 +5,22 @@
       <option value="">-- Select --</option>
     </select>
     <button id="load-corr-sets-btn" class="corr-btn">View Correspondence Sets</button>
+    <button id="select-languages-btn" class="corr-btn" disabled>Select Languages</button>
     <span id="corr-loading" style="display:none; margin-left: 10px;">Loading...</span>
   </div>
   
   <div id="corr-sets-container">
     <p class="corr-placeholder">Select a proto-language and click "View Correspondence Sets" to see the data.</p>
+  </div>
+</div>
+
+<div id="select-languages-dialog" style="display:none;">
+  <p>Select the languages to display in the correspondence sets:</p>
+  <div id="language-checkboxes" style="max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;">
+    <!-- Checkboxes will be populated dynamically -->
+  </div>
+  <div style="margin-top: 10px;">
+    <button id="select-all-languages" class="corr-btn">Select All</button>
+    <button id="deselect-all-languages" class="corr-btn">Deselect All</button>
   </div>
 </div>

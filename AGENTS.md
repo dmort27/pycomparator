@@ -212,3 +212,79 @@ order: [[6, 'asc']],  // Order by sim (column 6) ascending (lowest distance = be
 **Result**: Searching from Kachai (Tangkhulic) now shows all 30 top results from Tangkhulic languages (Challow, Huishu, Ukhrul, Khangoi, Phadang, Tusom, etc.) instead of unrelated languages.
 
 **Files Modified**: `comparator.py`
+
+### Edit/Delete Protoform Buttons Fix (July 2026)
+
+**Issue**: "Edit" and "Delete" buttons on the Reconstructions pane didn't work. Edit opened dialog but updates weren't saved; Delete had no effect.
+
+**Root Cause**: Multiple JavaScript issues:
+1. **`this` context not available in AJAX callbacks**: Functions `editProtoformDialog()` and `editReflexDialog()` used `this.refid` and `this.scrollPos` to access values set on the AJAX settings object. While jQuery does make the settings object available as `this` in callbacks, this pattern is fragile and can break with different jQuery versions or when the callback is passed as a bare function reference.
+2. **Closure problem with `for var` loops**: The loop `for (var i = 0; ...)` with async callbacks means all callbacks share the same `i` variable, which has already incremented by the time callbacks execute.
+3. **jQuery AJAX issue with Delete**: The `deleteProtoform()` function's jQuery `$.ajax()` call was silently failing (not reaching success or error callbacks) despite the server returning 200 OK.
+
+**Fix Applied for Edit**: Changed to explicit parameter passing with IIFE closure:
+```javascript
+// Before (broken):
+for (var i = 0; i < selection.length; i++) {
+  $.ajax({
+    refid: selection[i][0],
+    scrollPos: scrollPos,
+    ...
+    success: editProtoformDialog
+  });
+}
+function editProtoformDialog(data) {
+  var refid = this.refid;  // Fragile!
+  var scrollPos = this.scrollPos;
+  ...
+}
+
+// After (fixed):
+for (var i = 0; i < selection.length; i++) {
+  (function(refid, ..., scrollPosCapture) {
+    $.ajax({
+      ...
+      success: function(data) {
+        editProtoformDialog(data, refid, scrollPosCapture);
+      }
+    });
+  })(selection[i][0], ..., scrollPos);
+}
+function editProtoformDialog(data, refid, scrollPos) {
+  ...
+}
+```
+
+**Fix Applied for Delete**: Replaced jQuery `$.ajax()` with native `fetch()` API:
+```javascript
+// Before (broken - jQuery AJAX silently failing):
+$.ajax({
+  url: '/deleteprotoform',
+  data: { prefid: prefid },
+  dataType: 'json',
+  success: function(response) { ... }
+});
+
+// After (fixed - using fetch):
+fetch('/deleteprotoform?prefid=' + encodeURIComponent(prefid))
+  .then(function(response) {
+    if (!response.ok) throw new Error('Server error: ' + response.status);
+    return response.json();
+  })
+  .then(function(data) {
+    protoforms.ajax.reload(null, false);
+    if (typeof supporting !== 'undefined') {
+      supporting.ajax.reload(null, false);
+    }
+  })
+  .catch(function(error) {
+    alert('Error deleting reconstruction: ' + error.message);
+  });
+```
+
+**Files Modified**: `static/comparator.js`
+- `editProtoform()` and `editProtoformDialog()` - for protoforms/reconstructions
+- `editReflexes()` and `editReflexDialog()` - for reflexes
+- `deleteProtoform()` - changed from jQuery AJAX to fetch API
+
+**Note**: `popupSupportingDialog()` was not changed as it correctly uses `context: {...}` in the AJAX options, which is the proper jQuery way to set callback context.

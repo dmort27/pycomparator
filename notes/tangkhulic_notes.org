@@ -1,3 +1,4 @@
+|-----+--------+--------+-------+-------------+-------------+---------+-----------+--------+---------+---------+---------+--------|
 | PTk | Kachai | Huishu | Tusom | C. Tangkhul | N. Tankghul | Luhuppa | Champhung | Ukhrul | Phadang | Challow | Khangoi | Kongai |
 |-----+--------+--------+-------+-------------+-------------+---------+-----------+--------+---------+---------+---------+--------|
 | a   | u      | we     | i     | a           | a           | a       | a         | a      | a       | e       | a       | ə      |
@@ -5,7 +6,6 @@
 | i   | ɐ      | ik     | ɯ     | i           | ɯ           | i       | i         | i      | e       | ak      | i       | i      |
 | o   | ɐ      | u      | u     | o           | o           |         |           | o      | u       |         | o       |        |
 | u   | ɐ      | uk     | ɯ/u/y | u/wi        | ɯ/wɯ        | ɯ/u     | ɯ/u       | u      | u       | uk      | u       | u      |
-| ɨ   | i      | uk     | y     | ɯ           | ɯ           | ɯ       | i         | u      | uj      | uk      | u       | ɨ/u    |
 |-----+--------+--------+-------+-------------+-------------+---------+-----------+--------+---------+---------+---------+--------|
 | aj  | we     | ej     | i     | aj          | aj          | aj      | aj        | aj     | aj      | ej      | i       | i      |
 | aw  | o      | ow     | ɯ     | aw          | aw          | aw      |           | aw     | aw      |         | a       |        |
@@ -15,6 +15,8 @@
 |-----+--------+--------+-------+-------------+-------------+---------+-----------+--------+---------+---------+---------+--------|
 | oj  | i      | u      | y/uj  |             |             | oj      | ɯj        | uj     | oj      | aw      | oj/ej   |        |
 | ow  | e      | ow     | uə    | aw          | aw          | uj      | aw        | uj     | ew      | aw      | aw      | a      |
+|-----+--------+--------+-------+-------------+-------------+---------+-----------+--------+---------+---------+---------+--------|
+| uj  | i      | uk     | y     | ɯ           | ɯ           | ɯ       | i         | u      | uj      | uk      | u       | ɨ/u    |
 |-----+--------+--------+-------+-------------+-------------+---------+-----------+--------+---------+---------+---------+--------|
 
 
@@ -47,7 +49,7 @@ y- *ɐ > a / _[pt?kmŋ]
 
 Okay, neat:
 
-1. a > o in open syllables, but there is some distinction (long-short?) that is being missed, affecting quality and coda deletion
+1. a > o in closed syllables, but there is some distinction (long-short?) that is being missed, affecting quality and coda deletion
    * It looks like there was a general process of raising, rounding, and backing of *aː
    * In closed syllables, this stopped at /o/
    * In open syllables, this proceeded to /u/
@@ -78,7 +80,7 @@ Okay, neat:
 * What Happened in Huishu
 
 1. a > we (perhaps we > e applied in Challow) but becomes /i/ after *n (a > i / n_ also in Challow)
-2. ɨ > u (shared with Challow)
+2. uj > u (shared with Challow)
 3. 0 > k / [ui]_# (shared with Challow)
    + *-i > ik
    + *-u > uk
@@ -149,7 +151,7 @@ Okay, neat:
 2. a, e > i
 3. o > u
 4. u > y (not clear what is going on here; check)
-5. ɨ > y
+5. uj > y (allophonic variation?)
 6. aj > i
 7. aw > ɯ
 8. ej > a
@@ -158,26 +160,47 @@ Okay, neat:
 11. ow > uə
 
 
-|----+---+-------+------+-------+----+----+----+---|
-|    | p | t     | k    | m     | n  | ŋ  | l  | r |
-|----+---+-------+------+-------+----+----+----+---|
-| i  | ɯ | ɯ/ɯə  | ɯ/ɯə | ɯ̃ə̃    | ɯ̃ə̃ | ɯ̃ə̃ | ɯə | ? |
-| u  | u | u (ɯ) | u    | ũ/ỹ/õ |    |    |    |   |
-| ɯ  |   |       |      |       |    |    |    |   |
-| e  |   |       |      |       |    |    |    |   |
-| o  |   |       |      |       |    |    |    |   |
-| ɐ  |   |       |      |       |    |    |    |   |
-| a  |   |       |      |       |    |    |    |   |
-| aː |   |       |      |       |    |    |    |   |
-|----+---+-------+------+-------+----+----+----+---|
+|----+-------+-------------------+------+--------------------+--------+-----+---------+-----------------------------------|
+|    | p     | t                 | k    | m                  | n      | ŋ   | l       | r                                 |
+|----+-------+-------------------+------+--------------------+--------+-----+---------+-----------------------------------|
+| i  | ɯ     | ɯ/ɯə              | ɯ/ɯə | ɯ̃ə̃                 | ɯ̃ə̃     | ɯ̃ə̃  | ɯə      | ?                                 |
+| u  | u     | u (ɯ) (allophany) | u    | ũ/ỹ/õ              |        |     |         |                                   |
+| ɯ  |       |                   |      |                    |        |     |         |                                   |
+| e  | a/ɯ   | e                 | ɯə   |                    |        | ɯ̃ə̃  |         | y (probably conditioned by onset) |
+| o  |       | e                 | u    | õ                  | ɯ̃ə̃     | ã/õ | ui (ue) | o (y after coronals?)             |
+| ɐ  | o (a) | e                 | a    | õ (ã in “country”) | ẽ (ɯ̃ə̃) | ã   | —       | uə (ɯə)                           |
+| a  | ɯə    | e (ɯə)            | ɯə   | ɯ̃ə̃                 | ẽ (ɯ̃ə̃) | ɯ̃ə̃  | a (ɯə)  | uə (ɯə)                           |
+| aː | a     |                   |      | õ                  |        | ɯ̃ə̃  |         |                                   |
+|----+-------+-------------------+------+--------------------+--------+-----+---------+-----------------------------------|
 
+- In closed syllables, most vowels go to ɯə or ɯ̃ə̃. I think those are short vowels. There is breaking.
+- There seems to be a split between these vowels and those that do other things:
+  1. up, ut, uk, ok > u (this happens before breaking of short vowels)
+  2. um > ũ (maybe applies to un and uŋ as well). The best way to handle these is probably by lengthening /u/ in closed syllables, then deleting the codas.
+  3. [-high, +syl] > e / _ [+cor]
+  4. [-high, +syl] > o / _ [+lab]
+  5. o, ɐ > ã / _ ŋ
+  6. ok > u
+  7. [+syl, -long] > ɯə
+- The situation with Tusom consonants is complicated:
+  1. w > v / [pb] _ ɯ# (something complicated is happening here, because 
 
 * What Happened in Ukhrul
 
-1. e > i
-2. ɨ > u
-3. oj, ow > uj (distinction in maintained in Luhuppa)
+1. [+long] > [-long]
+2. e > i
+3. ɨ > u
+4. oj, ow > uj (distinction in maintained in Luhuppa)
 
+5. I think that there was a length distinction, at least among the low vowels, that was completely lost in Ukhrul but preserved (most conspicuously) in Tusom.
+
+The WP Ukhrul transcriptions are generally more consistent. One differences:
+
+1. u > ɐ / _ #
+2. w > v / _ [aɐ]
+
+
+Note that 2 is actually active in the other Ukhrul data set–it's fed by 1, but 1 is not indicated so there is a strange split distribution of w and v.
 
 * What Happened in Phadang
 
@@ -242,3 +265,26 @@ C. Tangkhul-N. Tangkhul-Champhung-Challow-Khangoi
 ow > aw
 
 No merger with *aw in Khangoi, 
+
+
+The reconstructions for “augmentative” and “grandmother/mother/aunt/female” and the associated cognate sets are messed up (probably, they should be divided in two).
+
+Rules for reconstructing sibilants:
+- ukh s → *s
+- ukh ʃ, hui s → *ʃ
+- ukh ʃ, kai ʃ → *ʃ
+- ukh c, kac c, hui ts → *c (hui palatalizes to c before front vowels)
+- ukh ts, kac ð → dz
+- ukh ts, tus z → dz
+- tus tɕʰ → cʰ
+- hui ts, ukh ʃ → tʃ
+
+
+Rules for reconstructing w/f/v/h:
+
+
+All instances of *w̥ > kac f seem to occur before *o or *u, making it unnecessary? Maybe? Should just be *h. Reconstruct *w̥ only in ‘dog’. What about hui ‘late’? Still need it:
+
+- kac f, hui w → *w̥ (kac w̥ > f before o, u; hui w̥ > h before u; ukh w̥ becomes f before u)
+- ukh h, kac h → *h
+- kac v → *bw; hui v → *bw (ukh affected by quality of following vowel)

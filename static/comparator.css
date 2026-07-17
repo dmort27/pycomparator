@@ -306,6 +306,9 @@ table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
   background-color: #fff;
   border-bottom: 1px solid #e2e8f0;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .toolbar-btn {
@@ -325,9 +328,39 @@ table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
   background: linear-gradient(to bottom, #2d3748, #1a202c);
 }
 
+.toolbar-spacer {
+  flex: 1;
+}
+
+.toolbar-setting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-setting label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.toolbar-setting select {
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  background-color: #fff;
+  color: #2d3748;
+  cursor: pointer;
+  font-family: inherit;
+}
+
 /* Correspondence Sets Dialog */
 #correspondence-sets-dialog {
   font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .corr-header {
@@ -339,6 +372,7 @@ table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
   gap: 10px;
   position: relative;
   z-index: 10;
+  flex-shrink: 0;
 }
 
 .corr-header label {
@@ -368,9 +402,15 @@ table.dataTable thead tr.filter-row input.column-filter.invalid-regex {
   background: linear-gradient(to bottom, #edf2f7, #e2e8f0);
 }
 
+.corr-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 #corr-sets-container {
-  max-height: 500px;
+  flex: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .corr-placeholder {
