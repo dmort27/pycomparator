@@ -17,13 +17,19 @@ laws:
   a-to-e-final: ["a", "e", "", "\\Z"]
   a-to-i-final: ["a", "i", "", "\\Z"]
   a-to-u-final: ["a", "u", "", "\\Z"]
-  a-to-o-closed ["a", "o", "", "[ptkmnŋr]"]
+  a-to-o-closed: ["a", "o", "", "[ptkmnŋr]"]
+  a-and-e-to-i-final: ["[ae]", "i", "", "\\Z"]
+  a-to-we: ["a", "we", "", "\\Z"]
 
-  # aj-
+# aa-
+  aang-to-i: ["aːŋ", "i", "", ""]
+
+# aj-
   aj-to-ej: ["aj", "ej", "", "\\Z"]
   aj-to-ej-final: ["aj", "ej", "", "\\Z"]
   aj-to-i: ["aj", "i", "", ""]
-  aj-to-ie: ["aj", "ie", "", "\\Z"]
+  aj-to-i-final: ["aj", "i", "", "\\Z"]
+  aj-to-ie: ["aː?j", "ie", "", "\\Z"]
   aj-to-we-final: ["aj", "we", "", "\\Z"]
 
   # at
@@ -40,10 +46,10 @@ laws:
   bw-to-v: ["bw", "v", "", ""]
 
   # c-
-  c-to-ts: ["c", "ts", "", ""]
+  c-to-ts: ["c", "t͡s", "", ""]
 
   # dz-
-  dz-to-d: ["dz", "d", "", ""]
+  dz-to-d: ["d͡z", "d", "", ""]
   dz-to-r: ["d͡z", "r", "", ""]
 
   # e
@@ -63,18 +69,27 @@ laws:
 
   # ew
   ew-to-ow: ["ew", "ow", "", "\\Z"]
+  ew-to-u: ["ew", "u", "", "\\Z"]
+
+  nonhigh-vowels-to-e-before-cor: ["(e|o|ɐ|aː)", "e", "", "tn"]
+  nonhigh-vowels-to-o-before-lab: ["(e|o|ɐ|aː)", "o", "", "[pm]"]
 
   i-to-a-before-k: ["i", "a", "k", "\\Z"]
   i-to-turned-a-non-lab: ["i", "ɐ", "", "[tknŋ]"]
+  i-to-turned-m-final: ["i", "ɯ", "", "\\Z"]
 
   # -l
   l-to-j: ["l", "j", "", "\\Z"]
   l-to-n-final: ["l", "n", "", "\\Z"]
 
-  # o
+  ok-to-u: ["o", "u", "", "\\Z"]
+  o-engma-to-nasal-a: ["[oɐ]ːŋ", "a̰", "", ""]
   o-to-turned-a-tkn: ["o", "ɐ", "", "[tkn]"]
   o-to-u-final: ["o", "u", "", "\\Z"]
   o-to-u-before-velar: ["o", "u", "", "[kŋ]"]
+  o-to-turned-m-final: ["o", "ɯ", "", "\\Z"]
+  o-u-to-y-after-cor: ["[ou]", "y", "[tnlr]"]
+  o-to-turned-a-before-son: ["o", "ɐ", "", "[mnŋl]"]
 
   # oj
   oj-to-u: ["oj", "u", "", "\\Z"]
@@ -87,10 +102,15 @@ laws:
   ow-to-uj: ["ow", "uj", "", "\\Z"]
   ow-to-uə: ["ow", "uə", "", ""]
 
-  p-to-glottal-stop-after-low-final: ["p", "ʔ", "(ɐ|a|aː)", "\\Z"]
+  oon-to-turned-a-engma: ["oːn", "ɐŋ", "", ""]
 
+  n-to-zero-after-e: ["n", "ɐ", "", "e"]
+
+  p-to-glottal-stop-after-low-final: ["p", "ʔ", "[ɐa]", "\\Z"]
+  p-to-glottal-stop-after-low-final2: ["p", "ʔ", "aː", "\\Z"]
+  cor-to-glottal-stop-final: ["[tk]", "ʔ", "", "\\Z"]
   # -r
-  r-to-engma-final: ["r", "ŋ", "", "\\Zo"]
+  r-to-engma-final: ["r", "ŋ", "", "\\Z"]
 
   # short-a-
   short-a-to-a: ["ă", "a", "", ""]
@@ -100,7 +120,10 @@ laws:
 
   # t
   tk-to-glottal-stop: ["[tk]", "ʔ", "", "\\Z"]
+  # tc-go-c: ["", "", "", ""]
+  thi-to-tch: ["tʰi", "t͡ɕʰ", "", ""]
 
+  u-to-y-final: ["u", "y", "", "\\Z"]
   # w-
   w-between-k-and-ow: ["k", "w", "ow", "\\Z"]
   w-to-h: ["w̥", "h", "", ""]
@@ -110,6 +133,7 @@ laws:
     # uj
   Vj-to-i: ["[eou]j", "i", "", "\\Z"]
   uj-to-u: ["uj", "u", "", "\\Z"]
+  uj-to-y-final: ["uj", "y", "", "\\Z"]
 
   # iou
   iou-to-turned-a: ["[iou]", "ɐ", "", "\\Z"]
@@ -118,7 +142,26 @@ laws:
   low-to-ej-before-cor: ["(ɐ|a|aː)", "ej", "", "t"]
 
   # length
+  short-vowels-to-turned-m-schwa: ["[aeiou]", "ɯə", "", ""]
   shortening: ["ː", "", "", ""]
+
+  # Nasalization
+  vowel-nasalization: ["", "̃", "[aeiouɯ]", "[mnŋ]"]
+  spread-nasalization: ["", "̃", "[aeiouɯ]", "[aeiouɯ]̃"]
+
+  # Codas
+  del-codas: ["[ptkmnŋlr]", "", "", "\\Z"]
+  del-w-after-lj: ["[lj]", "", "w", ""]
+
+  # Buccalization
+  kh-to-kx-before-u-turned-m: ["kʰ", "k͡x", "", "[uɯ]"]
+  h-to-s-before-turned-m: ["[hʰ]", "s", "p", "ɯ"]
+  h-to-f-before-turned-m: ["ʰ", "f", "k", "ɯ"]
+  h-to-x-before-u-o: ["[hʰ]", 'x', "", "[uo]\\Z"]
+  h-to-curly-c-before-i: ["[hʰ]", "ɕ", "", "i"]
+
+  # Fricative Vowels
+  turned-m-to-z-after-s: ["ɯ", "z̩", "s", ""]
 
 # Phylogenetic tree: maps parent nodes to lists of children with their laws
 # Leaf nodes use glottocodes (e.g., phad1238) that resolve to database langids
@@ -130,7 +173,29 @@ tree:
       - shortening
     - child: east2902 # Tusom
       laws:
-        - law
+        - i-to-turned-m-final
+        - a-and-e-to-i-final
+        - o-to-u-final
+        - uj-to-y-final
+        - aj-to-ie-final
+        - aw-to-turned-m
+        - ej-to-a-final
+        - ew-to-u-schwa
+        - nonhigh-vowels-to-e-before-cor
+        - nonhigh-vowels-to-o-before-lab
+        - o-engma-to-nasal-a
+        - turned-a-engma-to-nasal-a
+        - ok-to-u
+        - short-vowels-to-turned-m-schwa
+        - vowel-nasalization
+        - spread-nasalization
+        - kh-to-kx-before-u-turned-m
+        - h-to-s-before-turned-m
+        - h-to-f-before-turned-m
+        - h-to-x-before-u-o
+        - del-codas
+        - o-u-to-y-after-cor
+        - thi-to-tch
   nuc-tangkhulic:
     - child: north-tangkhulic
       laws:
@@ -154,8 +219,18 @@ tree:
       laws:
         - e-to-i-final
         - oj-ow-to-uj
-      child: chal1279.1 # Huishu
+    - child: chal1279.1 # Huishu
       laws:
+        - aang-to-i
+        - oon-to-turned-a-engma
+        - a-to-we
+        - i-to-turned-a-before-son
+        - o-to-turned-a-before-son
+        - del-w-after-lj
+        - n-to-zero-after-e
+        - dz-to-r
+        - p-to-glottal-stop-after-low-final
+        - p-to-glottal-stop-after-low-final2
         - tk-to-glottal-stop
         - k-after-high
         - o-to-u-final
@@ -168,6 +243,6 @@ tree:
         - at-to-e
         - low-to-ej-before-cor
         - e-and-u-to-ej-before-t
-        - p-to-glottal-stop-after-low-final
         - l-to-n-final
         - r-to-engma-final
+        - c-to-ts

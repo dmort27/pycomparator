@@ -166,8 +166,8 @@ Okay, neat:
 | i  | ɯ     | ɯ/ɯə              | ɯ/ɯə | ɯ̃ə̃                 | ɯ̃ə̃     | ɯ̃ə̃  | ɯə      | ?                                 |
 | u  | u     | u (ɯ) (allophany) | u    | ũ/ỹ/õ              |        |     |         |                                   |
 | ɯ  |       |                   |      |                    |        |     |         |                                   |
-| e  | a/ɯ   | e                 | ɯə   |                    |        | ɯ̃ə̃  |         | y (probably conditioned by onset) |
-| o  |       | e                 | u    | õ                  | ɯ̃ə̃     | ã/õ | ui (ue) | o (y after coronals?)             |
+| e  | a/ɯ   | e                 | ɯə   |                    |        | ɯ̃ə̃  |         | y (conditioned)                   |
+| o  |       | e                 | u    | õ                  | ɯ̃ə̃     | ã/õ | ui (ue) | o (> y / [+cor]_)                 |
 | ɐ  | o (a) | e                 | a    | õ (ã in “country”) | ẽ (ɯ̃ə̃) | ã   | —       | uə (ɯə)                           |
 | a  | ɯə    | e (ɯə)            | ɯə   | ɯ̃ə̃                 | ẽ (ɯ̃ə̃) | ɯ̃ə̃  | a (ɯə)  | uə (ɯə)                           |
 | aː | a     |                   |      | õ                  |        | ɯ̃ə̃  |         |                                   |
@@ -287,4 +287,22 @@ All instances of *w̥ > kac f seem to occur before *o or *u, making it unnecessa
 
 - kac f, hui w → *w̥ (kac w̥ > f before o, u; hui w̥ > h before u; ukh w̥ becomes f before u)
 - ukh h, kac h → *h
-- kac v → *bw; hui v → *bw (ukh affected by quality of following vowel)
+- kac v → *bw; hui v → *bw (ukh affected by quality of following vowel
+- kac h, tus-1 p or b → *pw 
+- tus b or p, kac g → *pw
+
+
+Theoretical note:
+
+- Just because Ukhrul and Tusom are far apart, descended from putative ancestor P, it does not follow that a protolanguage reconstructed P* based on only Ukhrul and Tusom would be identical to P, since they could both loose the same contrasts. Specifically, both Tusom and Ukhrul have independently lost the length contrast between *u and *uː. This egg cannot be unscrambled.
+
+  Hoenigswald does a beautiful job of formalizing comparative reconstruction as the recovery of contrasts. His typology of sound changes reflects this formalism. The information theoretic claims that we make about historical reconstruction follow, in large part, from this formalism.
+
+  Comparative reconstruction is a noisy channel problem:
+
+  - *Ancestral language:* source model
+  - *Forward pass:* channel model
+  - *Cognate sets:* observations
+  - *Backward pass:* decoding
+
+  The difference is we care as must about the channel model as we do about the source reconstruction.
