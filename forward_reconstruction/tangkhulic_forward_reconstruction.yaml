@@ -44,9 +44,10 @@ laws:
   # b-
   b-to-p: ["b", "p", "", ""]
   bw-to-v: ["bw", "v", "", ""]
+  b-to-v: ["b", "v", "", ""]
 
   # c-
-  c-to-ts: ["c", "t͡s", "", ""]
+  c-to-ts: ["cʰ?", "t͡s", "", ""]
 
   # dz-
   dz-to-d: ["d͡z", "d", "", ""]
@@ -54,6 +55,7 @@ laws:
 
   # e
   e-to-i-final: ["e", "i", "", "\\Z"]
+  e-to-i-after-mj: ["e", "i", "[mj]", "\\Z"]
   e-to-turned-a-cor: ["e", "ɐ", "", "[tn]"]
   e-and-u-to-ej-before-t: ["[eu]", "ej", "", "t"]
 
@@ -63,9 +65,6 @@ laws:
   ej-to-e-final: ["ej", "e", "", "\\Z"]
   ej-to-i-final: ["ej", "i", "", "\\Z"]
   ej-to-u-final: ["ej", "u", "", "\\Z"]
-
-  # esh-
-  esh-to-s: ["ʃ", "s", "", ""]
 
   # ew
   ew-to-ow: ["ew", "ow", "", "\\Z"]
@@ -77,10 +76,15 @@ laws:
   i-to-a-before-k: ["i", "a", "k", "\\Z"]
   i-to-turned-a-non-lab: ["i", "ɐ", "", "[tknŋ]"]
   i-to-turned-m-final: ["i", "ɯ", "", "\\Z"]
+  i-to-o-before-k: ["i", "o", "", "k"]
+  i-to-e-before-lab: ["i", "e", "", "[pm]"]
+
+  iueo-to-turned-a-before-k: ["[iueo]", "ɐ", "", "k"]
 
   # -l
   l-to-j: ["l", "j", "", "\\Z"]
-  l-to-n-final: ["l", "n", "", "\\Z"]
+  l-to-engam-after-non-low-final: ["l", "ŋ", "[iueo]", "\\Z"]
+  l-to-engam-after-non-low-final2: ["l", "ŋ", "[iueo]ː", "\\Z"]
 
   ok-to-u: ["o", "u", "", "\\Z"]
   o-engma-to-nasal-a: ["[oɐ]ːŋ", "a̰", "", ""]
@@ -118,15 +122,21 @@ laws:
   # stop-
   stop-to-glottal-final: ["[ptk]", "ʔ", "", "\\Z"]
 
+  # esh
+  esh-to-s: ["ʃ", "s", "\\A", ""]
+  t-esh-to-t-s: ["t͡ʃ", "t͡s", "\\A", ""]
   # t
   tk-to-glottal-stop: ["[tk]", "ʔ", "", "\\Z"]
-  # tc-go-c: ["", "", "", ""]
+  # tc-go-c: ["", "", "", ""]kkkk
   thi-to-tch: ["tʰi", "t͡ɕʰ", "", ""]
+  tl-to-t: ["tl", "t", "\\A", ""]
+  t-to-k-before-ei: ["t", "k", "\\A", "[ei]"]
 
   u-to-y-final: ["u", "y", "", "\\Z"]
   # w-
   w-between-k-and-ow: ["k", "w", "ow", "\\Z"]
   w-to-h: ["w̥", "h", "", ""]
+  w-to-v-initial: ["w̥", "v", "\\A", ""]
 
   k-after-high: ["", "k", "[ui]", "\\Z"]
 
@@ -137,7 +147,7 @@ laws:
 
   # iou
   iou-to-turned-a: ["[iou]", "ɐ", "", "\\Z"]
-
+  high-front-to-ej: ["[ie]", "ej", "", "t"]
   # low vowels
   low-to-ej-before-cor: ["(ɐ|a|aː)", "ej", "", "t"]
 
@@ -151,7 +161,9 @@ laws:
 
   # Codas
   del-codas: ["[ptkmnŋlr]", "", "", "\\Z"]
-  del-w-after-lj: ["[lj]", "", "w", ""]
+  del-w-after-mlj: ["[ʃmlj]", "", "w", ""]
+  del-b-before-w: ["[b]", "", "w", ""]
+  del-r-final: ["r", "", "", "\\Z"]
 
   # Buccalization
   kh-to-kx-before-u-turned-m: ["kʰ", "k͡x", "", "[uɯ]"]
@@ -171,6 +183,8 @@ tree:
     - child: nuc-tangkhulic
       laws:
       - shortening
+      - tl-to-t
+
     - child: east2902 # Tusom
       laws:
         - i-to-turned-m-final
@@ -200,6 +214,7 @@ tree:
     - child: north-tangkhulic
       laws:
         - uj-to-u
+        - del-b-before-w
     - child: kach1286
       laws:
         - l-to-j
@@ -221,12 +236,22 @@ tree:
         - oj-ow-to-uj
     - child: chal1279.1 # Huishu
       laws:
+        - iueo-to-turned-a-before-p
+        - i-to-o-before-k
+        - i-to-e-before-lab
+        - turned-a-to-o-before-k
+        - high-front-to-ej
+        - b-to-v
+        - w-to-v-intial
+        - esh-to-s
+        - t-esh-to-t-s
         - aang-to-i
         - oon-to-turned-a-engma
         - a-to-we
         - i-to-turned-a-before-son
         - o-to-turned-a-before-son
-        - del-w-after-lj
+        - del-w-after-mlj
+        - e-to-i-after-mj
         - n-to-zero-after-e
         - dz-to-r
         - p-to-glottal-stop-after-low-final
@@ -243,6 +268,7 @@ tree:
         - at-to-e
         - low-to-ej-before-cor
         - e-and-u-to-ej-before-t
-        - l-to-n-final
-        - r-to-engma-final
+        - l-to-engma-after-non-low-final
+        - l-to-engma-after-non-low-final2
         - c-to-ts
+        - del-r-final

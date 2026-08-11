@@ -73,7 +73,7 @@ Okay, neat:
   * CTk
   * Luhuppa
   * Phadang
-  * 
+  *
 - [ ] Figure out what is going on with “thirst”.
 
 
@@ -97,7 +97,7 @@ Okay, neat:
 |    | p       | t      | k      | m     | n       | ŋ        | l     | r     |
 |----+---------+--------+--------+-------+---------+----------+-------+-------|
 | i  | ep      | ejʔ    | oʔ     | em/ɐm | ɐn      | ɐŋ       | ɐŋ    | u     |
-| u  | ɐp      | uʔ/ejʔ | uʔ     | um/ɐm | ɐn/un   | uŋ (ej?) | ɐn/ɐŋ | u     |
+| u  | ɐp      | uʔ/ejʔ | uʔ     | um/ɐm | ɐn/un   | uŋ       | ɐn/ɐŋ | u     |
 | ɯ  |         |        |        |       |         |          |       |       |
 | e  | ɐp      | ejʔ    | eʔ     | em    | ?       | e (i)    | ?     | e     |
 | o  | ɐp      | oʔ     | uʔ (ɐ) | ?     | ɐŋ (o?) | u (ɐŋ)   | ɐŋ    | u     |
@@ -106,6 +106,109 @@ Okay, neat:
 | aː | ?       | ?      | ?      | am    | ?       | i (o)    | ?     | ?     |
 |----+---------+--------+--------+-------+---------+----------+-------+-------|
 
+|----+----+----+-----+----+-------+----+----+----+---+----+----|
+|    | 0  | p  | t   | k  | m     | n  | ŋ  | l  | r | j  | w  |
+|----+----+----+-----+----+-------+----+----+----+---+----+----|
+| i  | ik | ep | –   | oʔ | ɐm/em | ɐŋ | ɐŋ | —  | u |    |    |
+| iː |    | —  | ejʔ | oʔ | —     | ɐn | —  | ɐŋ | — |    |    |
+|----+----+----+-----+----+-------+----+----+----+---+----+----|
+| u  | uk | ɐp | uʔ  | uʔ | ɐm    | ɐŋ | uŋ | ɐn |   | uk |    |
+| uː |    | —  | ejʔ | —  | —     | —  | —  | ɐŋ | u |    |    |
+|----+----+----+-----+----+-------+----+----+----+---+----+----|
+| e  | i  | —  | —   | ek | em    | —  | e  | —  | — | u  | ow |
+| eː |    |    | ejʔ | —  | –     | –  | –  | –  | ɐ |    |    |
+|----+----+----+-----+----+-------+----+----+----+---+----+----|
+| o  | u  | ɐp | —   | uʔ | —     | ɐŋ | —  | —  | — | u  | ow |
+| oː |    |    | oʔ  |    | —     |    | u  | ɐŋ | u |    |    |
+|----+----+----+-----+----+-------+----+----+----+---+----+----|
+| ɐ  | u  | ɐp | —   | oʔ | ɐm    | ej | ɐŋ | —  | o |    |    |
+| ɐː |    | aʔ | ejʔ | oʔ | am    | ej | o  | —  | o |    |    |
+|----+----+----+-----+----+-------+----+----+----+---+----+----|
+| a  | —  | aʔ | —   | aʔ | am    | ej | aŋ | —  | a | ej | ow |
+| aː | e  | —  | e   | —  | am    | —  | i  | —  | o |    |    |
+|----+----+----+-----+----+-------+----+----+----+---+----+----|
+
+For -m and -ŋ, could the reflexes in ɐ be from short vowels and the others from long vowels?
+This should be compared with Tusom.
+
+In Huishu, e > i / v _ #
+
+*** Sound laws applying to rhymes
+
+1. aːt > e
+2. ɐːŋ > o
+3. a:ŋ > i
+4. o:ŋ > u
+5. iŋ > ɐŋ
+6. oːt > oʔ
+7. ok > uʔ
+8. eŋ > e
+9. eːr > ɐ
+10. ar > a
+11. ɐp, ap > aʔ
+12. k > ʔ / [+back, +syl] _ #    
+13. [ptk] > ʔ / [+long] _
+14. 0 > k / [ui] _
+15. e > i / _ #
+16. [-low, +syl] > u / _ r
+17. [+low, +syl] > o / _ r
+18. [+long] > ej / _ t
+19. [+low] > e / _ [nj]
+20. a > aː / _ [pk]
+21. ɐ, ɐː, aː > oː / _ k, r
+22. i, iː > oː / _ k
+23. [+back, -long] > ɐ / _ p
+24. [+back, -long] > u / _ #
+25. aː > e / _ #
+26. [+low, +long] > a / _ m
+27. t > ʔ / _ #
+28. aːm, ɐ:m > am
+29. in, un, en, on > ɐŋ (that is, [-low, -long] + n > ɐŋ)
+30. [eo]j > u
+31. [+syl] > o / _  w
+32. [+long] > [-long]
+33. e > i / _ #
+34. l > n / _ #
+35. l > ŋ / [+long] _ #
+36. r > 0 / _ #
+
+
+*** Sound laws applying to onsets
+
+1. w > v / b _
+2. b > 0 / _ v
+3. d > 0 / _ l
+4. l > 0 / t _ 
+5. c, cʰ > t͡s
+6. ʃ > s
+7. z > t͡s
+8. t͡s, s > c, ʃ / _ [ei]
+9. d͡z > r
+10. d > r
+11. r̥ > r
+12. t > k / _ [ie]
+13. tʰ > t / _ (ik|uʔ)
+14. w̥ > h / _ u
+
+   
+- Delete ‘rice’
+- Fix ‘navel’
+- Fix ‘untie/loose’
+- Fix ‘throat/larynx/voice’, ‘good’, ‘voice’ (double counting)
+- Fix ‘enemy/war’
+- Fix ‘snake’
+- Fix ‘far’
+- Delete ‘dove’
+- Maybe the following sequence of changes:
+  1. bw, pw, kw > β (Core)
+  2. β > v (Huishu-Ukhrul)
+  3. β > ɸ > h, f (Kachai)
+- Not right, because Kachai reflexes of *bwon and *pwar have different onsets (v versus h)
+  1. Core: bw > v; pw, kw > f
+  2. Kachai: f > h (and f)
+  3. Ukhrul-Huishu: f > v (not quite right)
+
+*** Early attempt
 
 - at > e
 - [+low] > ej / _[ltn]
@@ -121,7 +224,7 @@ Okay, neat:
 
 - [ ] Figure out what's going on with “three” and “hide”
 - [ ] Investigate what is different about the two kinds of rhymes with -ŋ
-  
+
 
 * What happened in Challow?
 
@@ -183,7 +286,7 @@ Okay, neat:
   6. ok > u
   7. [+syl, -long] > ɯə
 - The situation with Tusom consonants is complicated:
-  1. w > v / [pb] _ ɯ# (something complicated is happening here, because 
+  1. w > v / [pb] _ ɯ# (something complicated is happening here, because
 
 * What Happened in Ukhrul
 
@@ -224,7 +327,7 @@ Pretty conservative.
 5. oj preserved or becomes ej
 6. ow > aw (shared with Challow, Champhung, NTk, CTk)
 
-   
+
 
 * General observations
 
@@ -264,7 +367,7 @@ ew > i
 C. Tangkhul-N. Tangkhul-Champhung-Challow-Khangoi
 ow > aw
 
-No merger with *aw in Khangoi, 
+No merger with *aw in Khangoi,
 
 
 The reconstructions for “augmentative” and “grandmother/mother/aunt/female” and the associated cognate sets are messed up (probably, they should be divided in two).
@@ -288,7 +391,7 @@ All instances of *w̥ > kac f seem to occur before *o or *u, making it unnecessa
 - kac f, hui w → *w̥ (kac w̥ > f before o, u; hui w̥ > h before u; ukh w̥ becomes f before u)
 - ukh h, kac h → *h
 - kac v → *bw; hui v → *bw (ukh affected by quality of following vowel
-- kac h, tus-1 p or b → *pw 
+- kac h, tus-1 p or b → *pw
 - tus b or p, kac g → *pw
 
 
@@ -306,3 +409,9 @@ Theoretical note:
   - *Backward pass:* decoding
 
   The difference is we care as must about the channel model as we do about the source reconstruction.
+
+
+* Notes about etyma
+
+- ‘intestines’ perhaps should be reconstructed with a short vowel, based on Huishu evidence. Is there contrary evidence aside from Tusom?
+- ‘corpse’ looks like it may have spread as a loan from Ukhrul. Exclude?
