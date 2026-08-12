@@ -41,8 +41,8 @@ class SoundLaw:
         right = self.right or ""
         source = self.source or ""
         target = self.target or ""
-        pattern = f"(?<={left})({source})(?={right})"
-        return lambda x: re.sub(pattern, target, x)
+        pattern = f"(?P<left>{left})({source})(?P<right>{right})"
+        return lambda x: re.sub(pattern, rf"\g<left>{target}\g<right>", x)
 
 
 @dataclass
