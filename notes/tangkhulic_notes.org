@@ -191,14 +191,6 @@ In Huishu, e > i / v _ #
 14. w̥ > h / _ u
 
    
-- Delete ‘rice’
-- Fix ‘navel’
-- Fix ‘untie/loose’
-- Fix ‘throat/larynx/voice’, ‘good’, ‘voice’ (double counting)
-- Fix ‘enemy/war’
-- Fix ‘snake’
-- Fix ‘far’
-- Delete ‘dove’
 - Maybe the following sequence of changes:
   1. bw, pw, kw > β (Core)
   2. β > v (Huishu-Ukhrul)
